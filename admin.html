@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Управление — Mlay 2026</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;800&family=Onest:wght@400;500;600&display=swap"><link rel="stylesheet" href="style.css"></head><body data-page="admin"><main><h2>Управление</h2><div id="box"></div></main>
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Управление — МапПремия</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;800&family=Onest:wght@400;500;600&display=swap"><link rel="stylesheet" href="style.css"></head><body data-page="admin"><main><h2>Управление</h2><div id="box"></div></main>
 <script type="module">
 import {ready,db,auth,FS,AU} from './fb.js';
 import {esc,DEFAULT} from './app.js';
@@ -39,9 +39,10 @@ async function noms(){
   const el=$('#tab');el.innerHTML='Загрузка…';
   try{
     const s=await FS.getDocs(FS.query(col('nominations'),FS.orderBy('order')));
-    el.innerHTML=(s.docs.length?s.docs.map(d=>row(d.id,d.data())).join(''):'<p class="text">В базе номинаций пока нет, сайт показывает стандартные. <button class="btn" id="seed">Загрузить стандартные в базу</button></p>')+
+    const have=new Set(s.docs.map(d=>d.id)),miss=DEFAULT.map((n,i)=>[n,i]).filter(([n])=>!have.has(n.id));
+    el.innerHTML=(s.docs.length?s.docs.map(d=>row(d.id,d.data())).join(''):'')+(miss.length?'<p class="text">'+(s.docs.length?'Не хватает стандартных номинаций: '+miss.length+'. ':'В базе номинаций пока нет, сайт показывает стандартные. ')+'<button class="btn" id="seed">'+(s.docs.length?'Догрузить недостающие':'Загрузить стандартные в базу')+'</button></p>':'')+
      '<h3>Добавить номинацию</h3><div class="nrow" id="new"><input class="t" placeholder="Название"><input class="d" placeholder="Описание"><input class="c" type="color" value="#b8f25b"><input class="o" type="number" value="'+s.docs.length+'"><button class="btn" data-a="add">Добавить</button></div>';
-    const sd=$('#seed');if(sd)sd.onclick=async()=>{for(const [i,n] of DEFAULT.entries())await FS.setDoc(ref('nominations',n.id),{t:n.t,d:n.d,c:n.c,order:i});noms()};
+    const sd=$('#seed');if(sd)sd.onclick=async()=>{for(const [n,i] of miss)await FS.setDoc(ref('nominations',n.id),{t:n.t,d:n.d,c:n.c,order:i});noms()};
     el.querySelectorAll('.nrow [data-a]').forEach(b=>b.onclick=async()=>{
       const r=b.closest('.nrow'),v={t:r.querySelector('.t').value.trim(),d:r.querySelector('.d').value.trim(),c:r.querySelector('.c').value,order:+r.querySelector('.o').value||0};
       if(!v.t)return;

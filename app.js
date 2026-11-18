@@ -4,7 +4,15 @@ export const DEFAULT=[
  {id:'scary',t:'Самая страшная карта',d:'Текст-заглушка описания номинации.',c:'#ff6b5e'},
  {id:'story',t:'Лучшая сюжетная карта',d:'Текст-заглушка описания номинации.',c:'#5bc8ff'},
  {id:'sound',t:'Карта с лучшими звуками',d:'Текст-заглушка описания номинации.',c:'#ffc83d'},
- {id:'mode',t:'Лучший режим',d:'Текст-заглушка описания номинации.',c:'#ff7ac8'}
+ {id:'mode',t:'Лучший режим',d:'Текст-заглушка описания номинации.',c:'#ff7ac8'},
+ {id:'multi',t:'Лучший мультиплеер режим',d:'Текст-заглушка описания номинации.',c:'#6c8cff'},
+ {id:'collab',t:'Лучшая коллаба',d:'Текст-заглушка описания номинации.',c:'#ff9f43'},
+ {id:'funny',t:'Самая смешная карта',d:'Текст-заглушка описания номинации.',c:'#ffe14d'},
+ {id:'innovation',t:'Инновация года',d:'Текст-заглушка описания номинации.',c:'#34e0b4'},
+ {id:'visuals',t:'Самые лучшие визуалы',d:'Текст-заглушка описания номинации.',c:'#e879f9'},
+ {id:'mechanics',t:'Самые лучшие механики',d:'Текст-заглушка описания номинации.',c:'#4dd0e1'},
+ {id:'modded',t:'Лучшая модовая карта',d:'Текст-заглушка описания номинации.',c:'#b08cff'},
+ {id:'vanilla',t:'Лучшая ванильная карта',d:'Текст-заглушка описания номинации.',c:'#8fd16b'}
 ];
 export const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const safeUrl=u=>/^https?:\/\//i.test(u)?esc(u):'#';
@@ -29,10 +37,10 @@ setScale(sc);
 
 const links=[['index.html','Главная','home'],['nominations.html','Номинации','nominations'],['apply.html','Подать заявку','apply'],['rules.html','Правила','rules']];
 const cur=page==='nomination'?'nominations':page;
-document.body.insertAdjacentHTML('afterbegin',`<header><a class="logo" href="index.html">Mlay 2026</a><nav>${links.map(l=>`<a href="${l[0]}"${l[2]===cur?' class="on"':''}>${l[1]}</a>`).join('')}</nav>
+document.body.insertAdjacentHTML('afterbegin',`<header><a class="logo" href="index.html">МапПремия</a><nav>${links.map(l=>`<a href="${l[0]}"${l[2]===cur?' class="on"':''}>${l[1]}</a>`).join('')}</nav>
 <div class="scale" role="group" aria-label="Масштаб сайта"><button id="sm" aria-label="Уменьшить">−</button><button id="sv" title="Сбросить масштаб">100%</button><button id="sp" aria-label="Увеличить">+</button></div></header>`);
 $('#sm').onclick=()=>setScale(sc-10);$('#sp').onclick=()=>setScale(sc+10);$('#sv').onclick=()=>setScale(100);setScale(sc);
-document.body.insertAdjacentHTML('beforeend',`<footer>Mlay 2026 · Премия лучших майнкрафт карт · Текст-заглушка для футера · <a href="admin.html">Управление</a></footer><div id="timer"><i></i>Текст-заглушка этапа: <b id="tl">—</b></div>`);
+document.body.insertAdjacentHTML('beforeend',`<footer>МапПремия · Премия лучших майнкрафт карт · Текст-заглушка для футера · <a href="admin.html">Управление</a></footer><div id="timer"><i></i>Текст-заглушка этапа: <b id="tl">—</b></div>`);
 function tick(){const d=END-new Date();$('#tl').textContent=d>0?`${Math.floor(d/864e5)} д ${Math.floor(d%864e5/36e5)} ч`:'завершён'}
 tick();setInterval(tick,6e4);
 
@@ -45,7 +53,7 @@ if(page==='nominations'){
 if(page==='nomination'){
   const [noms,ent]=await Promise.all([getNoms(),getEntries()]);
   const n=noms.find(x=>x.id===new URLSearchParams(location.search).get('id'))||noms[0];
-  document.title=n.t+' — Mlay 2026';
+  document.title=n.t+' — МапПремия';
   $('#nhead').style.setProperty('--c',n.c);$('#grid').style.setProperty('--c',n.c);
   $('#nhead').innerHTML=`<h2>${esc(n.t)}</h2><p>${esc(n.d)}</p>`;
   const list=ent.filter(e=>(e.noms||[]).includes(n.id));
@@ -82,8 +90,6 @@ if(page==='apply'){
 
 if(page==='home'){
   const [noms,ent]=await Promise.all([getNoms(),getEntries()]);
-  const m=noms.map(n=>`<span>${esc(n.t)}</span>`).join('');
-  $('#marq').innerHTML=`<div class="track">${m.repeat(4)}</div>`;
   const authors=new Set(ent.map(e=>String(e.author||'').trim().toLowerCase()).filter(Boolean)).size;
   const items=[[noms.length,'номинаций'],[ent.length,'карт'],[authors,'авторов']].filter(x=>x[0]>0);
   $('#stats').innerHTML=items.map(([v,l])=>`<div><b data-v="${v}">0</b><span>${l}</span></div>`).join('');
