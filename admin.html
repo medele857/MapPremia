@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Управление — МапПремия</title><link rel="preload" href="minecraft-ten-font-cyrillic.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="style.css"></head><body data-page="admin"><main><h2>Управление</h2><div id="box"></div></main>
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Управление — МапПремия</title><link rel="preload" href="minecraft-ten-font-cyrillic.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="style.css"></head><body data-page="admin"><div id="load"><b>МапПремия</b><span><i></i></span></div><script>setTimeout(function(){var l=document.getElementById("load");l&&l.remove()},9000)</script><main><h2>Управление</h2><div id="box"></div></main>
 <script type="module">
 import {ready,db,auth,FS,AU} from './fb.js';
 import {esc,DEFAULT} from './app.js';
@@ -28,7 +28,11 @@ async function apps(){
       '<p>Версия: '+esc(a.version)+' · Выход: '+esc(a.date)+' · Контакты: '+esc(a.contact)+'</p><p>Номинации: '+esc((a.noms||[]).map(i=>nm[i]||i).join(', '))+'</p><p><a href="'+(/^https?:\/\//i.test(a.link)?esc(a.link):'#')+'" target="_blank" rel="noopener">Ссылка на карту</a></p><p>'+esc(a.desc)+'</p><p>'+esc(a.media)+'</p><div class="bar"><button class="btn" data-id="'+d.id+'" data-a="ok">Одобрить</button><button class="btn ghost" data-id="'+d.id+'" data-a="no">Отклонить</button></div></div>'}).join(''):'<p class="text">Заявок пока нет.</p>';
     el.querySelectorAll('[data-a]').forEach(b=>b.onclick=async()=>{
       const id=b.dataset.id,a=data[id];b.disabled=true;
-      if(b.dataset.a==='ok'){await FS.setDoc(ref('entries',id),{name:a.name,author:a.author,link:a.link,noms:a.noms||[],desc:a.desc||''});await FS.updateDoc(ref('applications',id),{status:'approved'})}
+      if(b.dataset.a==='ok'){let img='';b.textContent='Ищу превью…';
+        try{const r=await fetch('https://api.microlink.io/?url='+encodeURIComponent(a.link));const j=await r.json();img=(j&&j.data&&j.data.image&&j.data.image.url)||''}catch(err){}
+        if(!img)img=(prompt('Не удалось подтянуть превью автоматически. Вставь ссылку на картинку-превью (или оставь пустым):')||'').trim();
+        if(!/^https?:\/\//i.test(img))img='';
+        await FS.setDoc(ref('entries',id),{name:a.name,author:a.author,link:a.link,noms:a.noms||[],desc:a.desc||'',img});await FS.updateDoc(ref('applications',id),{status:'approved'})}
       else{await FS.deleteDoc(ref('entries',id));await FS.updateDoc(ref('applications',id),{status:'rejected'})}
       apps();
     });

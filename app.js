@@ -28,6 +28,12 @@ async function getEntries(){
 const END=new Date('2026-12-01T00:00:00');
 const $=s=>document.querySelector(s);
 const page=document.body.dataset.page;
+const hid=s=>{let x=0;for(const c of String(s))x=(x*31+c.charCodeAt(0))>>>0;return x.toString(36)};
+// звуки: синтезируются в браузере (WebAudio), файлов не нужно
+let snd=true;try{snd=localStorage.getItem('mp-snd')!=='0'}catch(e){}
+let AC=null;
+const SFX={click:[[260,.05,'square',0],[180,.06,'square',.05]],tick:[[880,.025,'square',0]],pop:[[600,.05,'triangle',0],[900,.08,'triangle',.05]],ok:[[523,.1,'triangle',0],[659,.1,'triangle',.1],[784,.1,'triangle',.2],[1047,.25,'triangle',.3]],err:[[120,.25,'sawtooth',0]]};
+export function sfx(k){if(!snd)return;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();const t0=AC.currentTime;for(const [f,d,w,s] of SFX[k]){const o=AC.createOscillator(),g=AC.createGain();o.type=w;o.frequency.value=f;g.gain.setValueAtTime(k==='tick'?.02:.07,t0+s);g.gain.exponentialRampToValueAtTime(.0001,t0+s+d);o.connect(g);g.connect(AC.destination);o.start(t0+s);o.stop(t0+s+d+.02)}}catch(e){}}
 
 // масштаб сайта
 let sc=100;try{sc=+localStorage.getItem('mlay-scale')||100}catch(e){}
@@ -38,8 +44,14 @@ setScale(sc);
 const links=[['index.html','Главная','home'],['nominations.html','Номинации','nominations'],['apply.html','Подать заявку','apply'],['rules.html','Правила','rules']];
 const cur=page==='nomination'?'nominations':page;
 document.body.insertAdjacentHTML('afterbegin',`<header><a class="logo" href="index.html">МапПремия</a><nav>${links.map(l=>`<a href="${l[0]}"${l[2]===cur?' class="on"':''}>${l[1]}</a>`).join('')}</nav>
-<div class="scale" role="group" aria-label="Масштаб сайта"><button id="sm" aria-label="Уменьшить">-</button><button id="sv" title="Сбросить масштаб">100%</button><button id="sp" aria-label="Увеличить">+</button></div></header>`);
+<div class="scale" role="group" aria-label="Масштаб сайта"><button id="sm" aria-label="Уменьшить">-</button><button id="sv" title="Сбросить масштаб">100%</button><button id="sp" aria-label="Увеличить">+</button></div><button class="btn ghost sndbtn" id="snd"></button></header>`);
 $('#sm').onclick=()=>setScale(sc-10);$('#sp').onclick=()=>setScale(sc+10);$('#sv').onclick=()=>setScale(100);setScale(sc);
+const sb=$('#snd'),lbl=()=>sb.textContent=snd?'Звук: вкл':'Звук: выкл';lbl();
+sb.onclick=()=>{snd=!snd;try{localStorage.setItem('mp-snd',snd?'1':'0')}catch(e){}lbl();sfx('pop')};
+let lastH=null;
+document.addEventListener('click',e=>{const t=e.target.closest('a,button,label');if(t&&t.id!=='snd')sfx(t.classList.contains('sh')?'pop':'click')},true);
+document.addEventListener('mouseover',e=>{const t=e.target.closest('.nom,.card,nav a,.btn');if(t&&t!==lastH)sfx('tick');lastH=t});
+const toast=m=>{let t=$('#toast');if(!t){document.body.insertAdjacentHTML('beforeend','<div id="toast" role="status"></div>');t=$('#toast')}t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),2200)};
 document.body.insertAdjacentHTML('beforeend',`<footer>МапПремия · Премия лучших майнкрафт карт · Текст-заглушка для футера · <a href="admin.html">Управление</a></footer><div id="timer"><i></i>Текст-заглушка этапа: <b id="tl">—</b></div>`);
 function tick(){const d=END-new Date();$('#tl').textContent=d>0?`${Math.floor(d/864e5)} д ${Math.floor(d%864e5/36e5)} ч`:'завершён'}
 tick();setInterval(tick,6e4);
@@ -57,8 +69,13 @@ if(page==='nomination'){
   $('#nhead').style.setProperty('--c',n.c);$('#grid').style.setProperty('--c',n.c);
   $('#nhead').innerHTML=`<img class="ncov" src="covers/${encodeURIComponent(n.id)}.png" alt="" onerror="this.remove()"><h2>${esc(n.t)}</h2><p>${esc(n.d)}</p>`;
   const list=ent.filter(e=>(e.noms||[]).includes(n.id));
-  $('#grid').innerHTML=list.length?list.map(e=>`<a class="card" href="${safeUrl(e.link)}" target="_blank" rel="noopener"><div class="img"></div><div class="t"><b>${esc(e.name)}</b><span>${esc(e.author)}</span></div></a>`).join('')
+  $('#grid').innerHTML=list.length?list.map(e=>`<div class="card" id="e-${hid(e.id)}"><a class="img" href="${safeUrl(e.link)}" target="_blank" rel="noopener">${/^https?:\/\//i.test(e.img||'')?`<img src="${esc(e.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:''}</a><div class="t"><b>${esc(e.name)}</b><span>${esc(e.author)}</span>${e.desc?`<p>${esc(e.desc)}</p>`:''}<div class="acts"><a class="btn" href="${safeUrl(e.link)}" target="_blank" rel="noopener">Minecraft Inside</a><button class="btn ghost sh" data-h="${hid(e.id)}">Поделиться</button></div></div></div>`).join('')
    :'<p class="text">Участников пока нет. Текст-заглушка.</p>';
+  $('#grid').addEventListener('click',async e=>{const b=e.target.closest('.sh');if(!b)return;
+    const url=location.origin+location.pathname+'?id='+encodeURIComponent(n.id)+'#e-'+b.dataset.h,name=b.closest('.card').querySelector('b').textContent,text='Голосуй за «'+name+'» в номинации «'+n.t+'» — МапПремия';
+    try{if(navigator.share){await navigator.share({title:'МапПремия',text,url});return}}catch(err){if(err&&err.name==='AbortError')return}
+    try{await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}catch(err){prompt('Скопируй ссылку:',url)}});
+  const hl=location.hash.startsWith('#e-')&&document.getElementById(location.hash.slice(1));if(hl){hl.classList.add('hl');hl.scrollIntoView({block:'center'})}
 }
 if(page==='apply'){
   const noms=await getNoms();
@@ -74,6 +91,8 @@ if(page==='apply'){
   form.addEventListener('submit',async e=>{
     e.preventDefault();const f=e.target,fd=new FormData(f),g=(k,m)=>String(fd.get(k)||'').trim().slice(0,m),u=ready&&auth.currentUser;
     if(!u)return msg('Сначала войди через Google.');
+    let h='';try{h=new URL(g('link',500)).hostname}catch(err){}
+    if(!/(^|\.)minecraft-inside\.ru$/.test(h)){sfx('err');return msg('Нужна ссылка на карту на minecraft-inside.ru')}
     if(!fd.getAll('noms').length)return msg('Выбери хотя бы одну номинацию.');
     const b=f.querySelector('button');b.disabled=true;msg('');
     const data={name:g('name',200),author:g('author',200),version:g('version',50),link:g('link',500),date:g('date',20),
@@ -82,8 +101,8 @@ if(page==='apply'){
     // не больше 5 заявок с одного аккаунта: id = uid_1 ... uid_5, занятые слоты база отклоняет
     let ok=false;
     for(let i=1;i<=5&&!ok;i++){try{await FS.setDoc(FS.doc(db,'applications',u.uid+'_'+i),data);ok=true}catch(err){}}
-    if(ok){f.reset();msg('Заявка отправлена. Мы проверим её и свяжемся с тобой.')}
-    else msg('Не удалось отправить заявку. Возможно, ты уже подал максимум (5 заявок с одного аккаунта).');
+    if(ok){sfx('ok');f.reset();msg('Заявка отправлена. Мы проверим её и свяжемся с тобой.')}
+    else sfx('err'),msg('Не удалось отправить заявку. Возможно, ты уже подал максимум (5 заявок с одного аккаунта).');
     b.disabled=false;
   });
 }
@@ -102,3 +121,5 @@ if(page==='home'){
   }),{threshold:.6});
   document.querySelectorAll('[data-v]').forEach(e=>io.observe(e));
 }
+
+document.getElementById('load')?.classList.add('done');setTimeout(()=>document.getElementById('load')?.remove(),500);
