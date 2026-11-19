@@ -47,7 +47,7 @@ tick();setInterval(tick,6e4);
 if(page==='nominations'){
   const [noms,ent]=await Promise.all([getNoms(),getEntries()]);
   const slots=Math.max(9,Math.ceil(noms.length/3)*3);
-  $('#noms').innerHTML=noms.map(n=>`<a class="nom" data-fx="${esc(n.id)}" style="--c:${esc(n.c)}" href="nomination.html?id=${encodeURIComponent(n.id)}"><span class="go">→</span>${n.id==='sound'?'<span class="eq"><i></i><i></i><i></i><i></i><i></i></span>':''}<h3>${esc(n.t)}</h3><small>${ent.filter(e=>(e.noms||[]).includes(n.id)).length} участников</small></a>`).join('')
+  $('#noms').innerHTML=noms.map(n=>`<a class="nom" data-fx="${esc(n.id)}" style="--c:${esc(n.c)}" href="nomination.html?id=${encodeURIComponent(n.id)}"><span class="go">→</span><img class="cov" src="covers/${encodeURIComponent(n.id)}.png" alt="" loading="lazy" onload="this.parentNode.classList.add('hascov')" onerror="this.remove()">${n.id==='sound'?'<span class="eq"><i></i><i></i><i></i><i></i><i></i></span>':''}<h3>${esc(n.t)}</h3><small>${ent.filter(e=>(e.noms||[]).includes(n.id)).length} участников</small></a>`).join('')
    +Array.from({length:slots-noms.length},()=>`<div class="nom soon"><h3>Скоро новая номинация</h3><small>Текст-заглушка</small></div>`).join('');
 }
 if(page==='nomination'){
@@ -55,7 +55,7 @@ if(page==='nomination'){
   const n=noms.find(x=>x.id===new URLSearchParams(location.search).get('id'))||noms[0];
   document.title=n.t+' — МапПремия';
   $('#nhead').style.setProperty('--c',n.c);$('#grid').style.setProperty('--c',n.c);
-  $('#nhead').innerHTML=`<h2>${esc(n.t)}</h2><p>${esc(n.d)}</p>`;
+  $('#nhead').innerHTML=`<img class="ncov" src="covers/${encodeURIComponent(n.id)}.png" alt="" onerror="this.remove()"><h2>${esc(n.t)}</h2><p>${esc(n.d)}</p>`;
   const list=ent.filter(e=>(e.noms||[]).includes(n.id));
   $('#grid').innerHTML=list.length?list.map(e=>`<a class="card" href="${safeUrl(e.link)}" target="_blank" rel="noopener"><div class="img"></div><div class="t"><b>${esc(e.name)}</b><span>${esc(e.author)}</span></div></a>`).join('')
    :'<p class="text">Участников пока нет. Текст-заглушка.</p>';
