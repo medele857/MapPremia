@@ -4,6 +4,25 @@ import {ready,db,auth,FS,AU} from './fb.js';
 import {esc,DEFAULT} from './app.js';
 const $=s=>document.querySelector(s),box=$('#box'),LBL={new:'Новая',approved:'Одобрена',rejected:'Отклонена'};
 const col=n=>FS.collection(db,n),ref=(n,i)=>FS.doc(db,n,i);
+// сжимает картинку в маленький JPEG прямо внутри записи, поэтому её видят все, а не только ты
+const shrink=src=>new Promise((res,rej)=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>{try{const k=Math.min(1,600/im.naturalWidth),w=Math.round(im.naturalWidth*k),h=Math.round(im.naturalHeight*k),c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(im,0,0,w,h);res(c.toDataURL('image/jpeg',.75))}catch(e){rej(e)}};im.onerror=()=>rej(new Error('load'));im.src=src});
+// окно выбора превью: файл с компьютера или ссылка. Вернёт data-URL / ссылку / '' (без превью) / null (отмена)
+const pickImage=(title,pre)=>new Promise(done=>{
+  const m=document.createElement('div');m.className='mdl';
+  m.innerHTML='<div class="acard"><b>Превью для «'+esc(title)+'»</b><p>Лучше выбрать файл: тогда картинку точно увидят все.</p><p><input type="file" id="pf" accept="image/*"></p><p><input id="pu" placeholder="или ссылка на картинку" value="'+esc(pre||'')+'"></p><p id="pm"></p><div class="bar"><button class="btn" id="po">Сохранить</button><button class="btn ghost" id="pn">Без превью</button><button class="btn ghost" id="pc">Отмена</button></div></div>';
+  document.body.appendChild(m);
+  const q=s=>m.querySelector(s),msg=t=>q('#pm').textContent=t,close=v=>{m.remove();done(v)};
+  q('#pn').onclick=()=>close('');q('#pc').onclick=()=>close(null);
+  q('#po').onclick=async()=>{
+    const f=q('#pf').files[0],u=q('#pu').value.trim();
+    if(!f&&!/^https?:\/\//i.test(u))return msg('Выбери файл или вставь ссылку.');
+    q('#po').disabled=true;msg('Обрабатываю…');
+    try{
+      if(f)return close(await shrink(URL.createObjectURL(f)));
+      try{close(await shrink(u))}catch(e){close(u)}
+    }catch(e){msg('Не получилось прочитать файл. Попробуй другую картинку.');q('#po').disabled=false}
+  };
+});
 if(!ready)box.innerHTML='<p class="text">Firebase не настроен: заполни firebase-config.js.</p>';
 else AU.onAuthStateChanged(auth,u=>{
   if(!u){box.innerHTML='<button class="btn" id="in">Войти через Google</button>';$('#in').onclick=()=>AU.signInWithPopup(auth,new AU.GoogleAuthProvider());}
@@ -25,13 +44,21 @@ async function apps(){
     DEFAULT.forEach(n=>nm[n.id]=nm[n.id]||n.t);
     const data={};s.docs.forEach(d=>data[d.id]=d.data());
     el.innerHTML=s.docs.length?s.docs.map(d=>{const a=d.data();return '<div class="acard"><span class="st '+esc(a.status)+'">'+esc(LBL[a.status]||a.status)+'</span><b>'+esc(a.name)+'</b> — '+esc(a.author)+
-      '<p>Версия: '+esc(a.version)+' · Выход: '+esc(a.date)+' · Контакты: '+esc(a.contact)+'</p><p>Номинации: '+esc((a.noms||[]).map(i=>nm[i]||i).join(', '))+'</p><p><a href="'+(/^https?:\/\//i.test(a.link)?esc(a.link):'#')+'" target="_blank" rel="noopener">Ссылка на карту</a></p><p>'+esc(a.desc)+'</p><p>'+esc(a.media)+'</p><div class="bar"><button class="btn" data-id="'+d.id+'" data-a="ok">Одобрить</button><button class="btn ghost" data-id="'+d.id+'" data-a="no">Отклонить</button></div></div>'}).join(''):'<p class="text">Заявок пока нет.</p>';
+      '<p>Версия: '+esc(a.version)+' · Выход: '+esc(a.date)+' · Контакты: '+esc(a.contact)+'</p><p>Номинации: '+esc((a.noms||[]).map(i=>nm[i]||i).join(', '))+'</p><p><a href="'+(/^https?:\/\//i.test(a.link)?esc(a.link):'#')+'" target="_blank" rel="noopener">Ссылка на карту</a></p><p>'+esc(a.desc)+'</p><p>'+esc(a.media)+'</p><div class="bar"><button class="btn" data-id="'+d.id+'" data-a="ok">Одобрить</button><button class="btn ghost" data-id="'+d.id+'" data-a="no">Отклонить</button>'+(a.status==='approved'?'<button class="btn ghost" data-id="'+d.id+'" data-a="img">Сменить превью</button>':'')+'</div></div>'}).join(''):'<p class="text">Заявок пока нет.</p>';
     el.querySelectorAll('[data-a]').forEach(b=>b.onclick=async()=>{
       const id=b.dataset.id,a=data[id];b.disabled=true;
+      if(b.dataset.a==='img'){
+        let cur='';try{const x=await FS.getDoc(ref('entries',id));cur=(x.data()||{}).img||''}catch(err){}
+        const img=await pickImage(a.name,/^https?:/i.test(cur)?cur:'');
+        if(img!==null)await FS.updateDoc(ref('entries',id),{img});
+        return apps();
+      }
       if(b.dataset.a==='ok'){let img='';b.textContent='Ищу превью…';
         try{const r=await fetch('https://api.microlink.io/?url='+encodeURIComponent(a.link));const j=await r.json();img=(j&&j.data&&j.data.image&&j.data.image.url)||''}catch(err){}
-        if(!img)img=(prompt('Не удалось подтянуть превью автоматически. Вставь ссылку на картинку-превью (или оставь пустым):')||'').trim();
-        if(!/^https?:\/\//i.test(img))img='';
+        // пробуем превратить найденную картинку во встроенную; не вышло или не нашли, спрашиваем вручную
+        let ok=false;if(/^https?:\/\//i.test(img)){try{img=await shrink(img);ok=true}catch(err){}}
+        if(!ok){img=await pickImage(a.name,img);if(img===null)img=''}
+        if(!/^(https?:\/\/|data:image\/)/i.test(img))img='';
         await FS.setDoc(ref('entries',id),{name:a.name,author:a.author,link:a.link,noms:a.noms||[],desc:a.desc||'',img});await FS.updateDoc(ref('applications',id),{status:'approved'})}
       else{await FS.deleteDoc(ref('entries',id));await FS.updateDoc(ref('applications',id),{status:'rejected'})}
       apps();

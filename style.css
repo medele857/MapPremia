@@ -160,3 +160,5 @@ header .sndbtn{margin-left:0;padding:.4rem .9rem;font-size:.85rem;box-shadow:0 3
 .card .t p{color:var(--tx);font-size:.9rem;margin:.6rem 0 0;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 .acts{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem}.acts .btn{padding:.55rem 1rem;font-size:.85rem;margin:0}
 .card.hl{outline:4px solid var(--acc);outline-offset:4px}
+
+.mdl{position:fixed;inset:0;background:#000b;display:flex;align-items:center;justify-content:center;z-index:200;padding:1rem}.mdl .acard{width:100%;max-width:520px}.mdl input[type=file]{color:var(--tx);font:inherit}.mdl input:not([type=file]){width:100%}

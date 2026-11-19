@@ -15,6 +15,7 @@ export const DEFAULT=[
  {id:'vanilla',t:'Лучшая ванильная карта',d:'Текст-заглушка описания номинации.',c:'#8fd16b'}
 ];
 export const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const imgOk=u=>/^(https?:\/\/|data:image\/(jpeg|png|webp);base64,)/i.test(u||'');
 const safeUrl=u=>/^https?:\/\//i.test(u)?esc(u):'#';
 export async function getNoms(){
   if(!ready)return DEFAULT;
@@ -33,7 +34,11 @@ const hid=s=>{let x=0;for(const c of String(s))x=(x*31+c.charCodeAt(0))>>>0;retu
 let snd=true;try{snd=localStorage.getItem('mp-snd')!=='0'}catch(e){}
 let AC=null;
 const SFX={click:[[260,.05,'square',0],[180,.06,'square',.05]],tick:[[880,.025,'square',0]],pop:[[600,.05,'triangle',0],[900,.08,'triangle',.05]],ok:[[523,.1,'triangle',0],[659,.1,'triangle',.1],[784,.1,'triangle',.2],[1047,.25,'triangle',.3]],err:[[120,.25,'sawtooth',0]]};
-export function sfx(k){if(!snd)return;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();const t0=AC.currentTime;for(const [f,d,w,s] of SFX[k]){const o=AC.createOscillator(),g=AC.createGain();o.type=w;o.frequency.value=f;g.gain.setValueAtTime(k==='tick'?.02:.07,t0+s);g.gain.exponentialRampToValueAtTime(.0001,t0+s+d);o.connect(g);g.connect(AC.destination);o.start(t0+s);o.stop(t0+s+d+.02)}}catch(e){}}
+function synth(k){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();const t0=AC.currentTime;for(const [f,d,w,s] of SFX[k]){const o=AC.createOscillator(),g=AC.createGain();o.type=w;o.frequency.value=f;g.gain.setValueAtTime(k==='tick'?.02:.07,t0+s);g.gain.exponentialRampToValueAtTime(.0001,t0+s+d);o.connect(g);g.connect(AC.destination);o.start(t0+s);o.stop(t0+s+d+.02)}}catch(e){}}
+// если в папке sounds/ лежат click.ogg, tick.ogg, pop.ogg, ok.ogg, err.ogg, играют они; чего нет, то синтезируется
+const AUD={};
+for(const k of Object.keys(SFX)){try{const a=new Audio('sounds/'+k+'.ogg');a.preload='auto';a.addEventListener('error',()=>{AUD[k]=false});a.addEventListener('canplaythrough',()=>{AUD[k]=a},{once:true});a.load()}catch(e){AUD[k]=false}}
+export function sfx(k){if(!snd)return;const a=AUD[k];if(a){try{const c=a.cloneNode();c.volume=k==='tick'?.3:.7;const p=c.play();if(p&&p.catch)p.catch(()=>synth(k));return}catch(e){}}synth(k)}
 
 // масштаб сайта
 let sc=100;try{sc=+localStorage.getItem('mlay-scale')||100}catch(e){}
@@ -69,7 +74,7 @@ if(page==='nomination'){
   $('#nhead').style.setProperty('--c',n.c);$('#grid').style.setProperty('--c',n.c);
   $('#nhead').innerHTML=`<img class="ncov" src="covers/${encodeURIComponent(n.id)}.png" alt="" onerror="this.remove()"><h2>${esc(n.t)}</h2><p>${esc(n.d)}</p>`;
   const list=ent.filter(e=>(e.noms||[]).includes(n.id));
-  $('#grid').innerHTML=list.length?list.map(e=>`<div class="card" id="e-${hid(e.id)}"><a class="img" href="${safeUrl(e.link)}" target="_blank" rel="noopener">${/^https?:\/\//i.test(e.img||'')?`<img src="${esc(e.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:''}</a><div class="t"><b>${esc(e.name)}</b><span>${esc(e.author)}</span>${e.desc?`<p>${esc(e.desc)}</p>`:''}<div class="acts"><a class="btn" href="${safeUrl(e.link)}" target="_blank" rel="noopener">Minecraft Inside</a><button class="btn ghost sh" data-h="${hid(e.id)}">Поделиться</button></div></div></div>`).join('')
+  $('#grid').innerHTML=list.length?list.map(e=>`<div class="card" id="e-${hid(e.id)}"><a class="img" href="${safeUrl(e.link)}" target="_blank" rel="noopener">${imgOk(e.img)?`<img src="${esc(e.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:''}</a><div class="t"><b>${esc(e.name)}</b><span>${esc(e.author)}</span>${e.desc?`<p>${esc(e.desc)}</p>`:''}<div class="acts"><a class="btn" href="${safeUrl(e.link)}" target="_blank" rel="noopener">Minecraft Inside</a><button class="btn ghost sh" data-h="${hid(e.id)}">Поделиться</button></div></div></div>`).join('')
    :'<p class="text">Участников пока нет. Текст-заглушка.</p>';
   $('#grid').addEventListener('click',async e=>{const b=e.target.closest('.sh');if(!b)return;
     const url=location.origin+location.pathname+'?id='+encodeURIComponent(n.id)+'#e-'+b.dataset.h,name=b.closest('.card').querySelector('b').textContent,text='Голосуй за «'+name+'» в номинации «'+n.t+'» — МапПремия';
