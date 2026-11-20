@@ -72,6 +72,31 @@ sb.onclick=()=>{snd=!snd;try{localStorage.setItem('mp-snd',snd?'1':'0')}catch(e)
 let lastH=null;
 document.addEventListener('click',e=>{const t=e.target.closest('a,button,label');if(t&&t.id!=='snd')sfx(t.classList.contains('sh')?'pop':'click')},true);
 document.addEventListener('mouseover',e=>{const t=e.target.closest('.nom,.card,nav a,.btn');if(t&&t!==lastH)sfx('tick');lastH=t});
+// пиксельные эффекты: взрыв частиц и штамп по центру
+const REDUCE=matchMedia('(prefers-reduced-motion:reduce)').matches;
+const PXC=['#ffc83d','#fff3b0','#ffe14d','#d9921a','#ffffff'];
+const burst=(x,y,n=16,spread=90)=>{
+  if(REDUCE)return;
+  for(let i=0;i<n;i++){
+    const d=document.createElement('i'),z=[4,6,8][Math.random()*3|0],a=Math.random()*Math.PI*2,r=spread*(.4+Math.random()*.8);
+    d.className='pxp';d.style.cssText=`left:${x}px;top:${y}px;width:${z}px;height:${z}px;background:${PXC[Math.random()*PXC.length|0]}`;
+    document.body.appendChild(d);
+    d.animate([{transform:'translate(0,0)',opacity:1},{transform:`translate(${Math.cos(a)*r}px,${Math.sin(a)*r-20}px)`,opacity:1,offset:.6},{transform:`translate(${Math.cos(a)*r*1.1}px,${Math.sin(a)*r+30}px)`,opacity:0}],{duration:700+Math.random()*300,easing:'steps(8,end)'}).onfinish=()=>d.remove();
+  }
+};
+const stamp=text=>{
+  const d=document.createElement('div');d.className='pxstamp';d.innerHTML=`<img src="${ICONS.best}" alt=""><b>${esc(text)}</b>`;
+  document.body.appendChild(d);setTimeout(()=>d.remove(),1500);
+  burst(innerWidth/2,innerHeight*.42,34,150);
+};
+// небольшой взрыв при нажатии на кнопки
+document.addEventListener('click',e=>{const b=e.target.closest('.btn,.pager button,.ncard');if(b&&!b.disabled)burst(e.clientX,e.clientY,8,40)});
+// золотые искры на фоне
+if(!REDUCE){
+  const em=document.createElement('div');em.className='embers';em.setAttribute('aria-hidden','true');
+  em.innerHTML=Array.from({length:innerWidth>800?18:9},()=>{const z=[4,6,8][Math.random()*3|0];return `<i style="left:${Math.random()*100}%;width:${z}px;height:${z}px;animation-duration:${9+Math.random()*9}s;animation-delay:-${Math.random()*14}s;--dx:${Math.round(Math.random()*80-40)}px;background:${PXC[Math.random()*3|0]}"></i>`}).join('');
+  document.body.appendChild(em);
+}
 const ask=(title,text,ok='Да',no='Отмена')=>new Promise(done=>{
   const m=document.createElement('div');m.className='mdl';
   m.innerHTML=`<div class="acard" role="dialog" aria-modal="true"><b>${esc(title)}</b><p>${esc(text)}</p><div class="bar"><button class="btn" id="ay" type="button">${esc(ok)}</button><button class="btn ghost" id="an" type="button">${esc(no)}</button></div></div>`;
@@ -148,7 +173,7 @@ if(page==='nomination'){
         :await ask('Подтверди голос','Точно ли ты хочешь проголосовать за «'+en.name+'» в номинации «'+n.t+'»? Пока голосование идёт, голос можно изменить.','Да, голосую','Отмена');
       if(!yes)return;
       v.disabled=true;
-      try{await FS.setDoc(FS.doc(db,'votes',u.uid+'_'+n.id),{uid:u.uid,nom:n.id,entry:en.id,created:FS.serverTimestamp()});my=en.id;sfx('ok');toast(prev?'Голос изменён':'Голос принят')}
+      try{await FS.setDoc(FS.doc(db,'votes',u.uid+'_'+n.id),{uid:u.uid,nom:n.id,entry:en.id,created:FS.serverTimestamp()});my=en.id;sfx('ok');stamp(prev?'Голос изменён!':'Голос принят!')}
       catch(err){sfx('err');toast('Голос не принят: возможно, голосование уже закрыто или на паузе')}
       try{await loadMy()}catch(err){}draw();return}
     const ex=e.target.closest('a[target=_blank]');
@@ -202,7 +227,7 @@ if(page==='apply'){
     // не больше 5 заявок с одного аккаунта: id = uid_1 ... uid_5, занятые слоты база отклоняет
     let ok=false;
     for(let i=1;i<=5&&!ok;i++){try{await FS.setDoc(FS.doc(db,'applications',u.uid+'_'+i),data);ok=true}catch(err){}}
-    if(ok){sfx('ok');f.reset();upd();dc.textContent='0 / 2000';lh.className='hint';lh.textContent='Только ссылка на карту с minecraft-inside.ru';f.hidden=true;done.hidden=false;window.scrollTo({top:0,behavior:'smooth'})}
+    if(ok){sfx('ok');stamp('Заявка отправлена!');f.reset();upd();dc.textContent='0 / 2000';lh.className='hint';lh.textContent='Только ссылка на карту с minecraft-inside.ru';f.hidden=true;done.hidden=false;window.scrollTo({top:0,behavior:'smooth'})}
     else sfx('err'),msg('Не удалось отправить заявку. Возможно, ты уже подал максимум (5 заявок с одного аккаунта).');
     b.disabled=false;b.textContent='Отправить заявку';
   });
@@ -223,4 +248,9 @@ if(page==='home'){
   document.querySelectorAll('[data-v]').forEach(e=>io.observe(e));
 }
 
+// блоки появляются «пикселями», когда попадают на экран
+if(!REDUCE){
+  const rio=new IntersectionObserver(es=>es.forEach(x=>{if(x.isIntersecting){rio.unobserve(x.target);x.target.classList.add('rv-in')}}),{threshold:.12});
+  document.querySelectorAll('.npage,.card,.panel,.stats>div,.ahero').forEach((el,i)=>{el.classList.add('rv');el.style.setProperty('--rd',(i%6)*60+'ms');rio.observe(el)});
+}
 document.getElementById('load')?.classList.add('done');setTimeout(()=>document.getElementById('load')?.remove(),500);

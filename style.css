@@ -301,3 +301,17 @@ header nav{justify-self:center;justify-content:center}
 .btn[disabled]{opacity:.65;cursor:default}
 .card .t .vbadge{color:var(--ink)}
 .card .t .vcount{color:var(--acc)}
+
+/* пиксельные анимации */
+.pxp{position:fixed;z-index:300;pointer-events:none}
+.pxstamp{position:fixed;left:50%;top:42%;z-index:301;pointer-events:none;text-align:center;display:grid;justify-items:center;gap:.6rem;animation:stamp 1.5s steps(8) forwards}
+.pxstamp img{width:112px;height:112px;image-rendering:pixelated}
+.pxstamp b{font:800 clamp(1.4rem,4vw,2.2rem) var(--f1);color:var(--acc);text-shadow:3px 3px 0 #5a3d00,0 0 18px #ffc83d66;white-space:nowrap}
+@keyframes stamp{0%{transform:translate(-50%,-50%) scale(2.6);opacity:0}20%{transform:translate(-50%,-50%) scale(1);opacity:1}80%{transform:translate(-50%,-50%) scale(1);opacity:1}100%{transform:translate(-50%,-70%) scale(1);opacity:0}}
+.embers{position:fixed;inset:0;pointer-events:none;z-index:-1;overflow:hidden}
+.embers i{position:absolute;bottom:-12px;opacity:0;animation:emb linear infinite;animation-timing-function:steps(48)}
+@keyframes emb{0%{transform:translate(0,0);opacity:0}10%{opacity:.5}90%{opacity:.3}100%{transform:translate(var(--dx),-108vh);opacity:0}}
+.rv{opacity:0}
+.rv.rv-in{animation:pxin .5s steps(5) both;animation-delay:var(--rd,0ms)}
+@keyframes pxin{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.rv{opacity:1}}
