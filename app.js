@@ -76,8 +76,9 @@ document.addEventListener('mouseover',e=>{const t=e.target.closest('.nom,.card,n
 const REDUCE=matchMedia('(prefers-reduced-motion:reduce)').matches;
 const PXC=['#ffc83d','#fff3b0','#ffe14d','#d9921a','#ffffff'];
 // частицы на одном canvas: быстро, с физикой, квадраты по сетке 2px
-let cv,cx,parts=[],raf=0,lastT=0;
-const dpr=Math.min(devicePixelRatio||1,2);
+let cv,cx,parts=[],raf=0,lastT=0;const MAXP=matchMedia('(max-width:700px)').matches?160:400;
+const MOB=matchMedia('(max-width:700px)').matches;
+const dpr=Math.min(devicePixelRatio||1,MOB?1.5:2);
 const fit=()=>{if(!cv)return;cv.width=innerWidth*dpr;cv.height=innerHeight*dpr;cx.setTransform(dpr,0,0,dpr,0,0)};
 const ensureCv=()=>{if(cv)return;cv=document.createElement('canvas');cv.className='pxcv';cv.setAttribute('aria-hidden','true');document.body.appendChild(cv);cx=cv.getContext('2d');fit();addEventListener('resize',fit)};
 const snap=v=>Math.round(v/2)*2;
@@ -94,10 +95,11 @@ const loop=t=>{
   raf=parts.length?requestAnimationFrame(loop):0;
   if(!raf)cx.clearRect(0,0,innerWidth,innerHeight);
 };
-const add=p=>{parts.push(p);if(!raf){lastT=performance.now();raf=requestAnimationFrame(loop)}};
+const add=p=>{if(parts.length>MAXP)return;parts.push(p);if(!raf){lastT=performance.now();raf=requestAnimationFrame(loop)}};
 const pick=()=>PXC[Math.random()*PXC.length|0];
 const burst=(x,y,n=16,spread=90)=>{
   if(REDUCE)return;ensureCv();
+  if(MOB)n=Math.ceil(n*.6);
   for(let i=0;i<n;i++){
     const a=Math.random()*Math.PI*2,v=spread*(3+Math.random()*4),l=.45+Math.random()*.4;
     add({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-spread*1.2,g:900,s:[4,6,8][Math.random()*3|0],c:pick(),life:l,max:l});
@@ -105,7 +107,7 @@ const burst=(x,y,n=16,spread=90)=>{
 };
 // кольцо из квадратиков при нажатии
 const ring=(x,y,n=14,r=10,v=170)=>{
-  if(REDUCE)return;ensureCv();
+  if(REDUCE)return;ensureCv();if(MOB)n=10;
   for(let i=0;i<n;i++){
     const a=i/n*Math.PI*2,l=.4+Math.random()*.12;
     add({x:x+Math.cos(a)*r,y:y+Math.sin(a)*r,vx:Math.cos(a)*v,vy:Math.sin(a)*v,g:0,s:4,c:pick(),life:l,max:l});
@@ -113,7 +115,7 @@ const ring=(x,y,n=14,r=10,v=170)=>{
 };
 // мелкие кубики на штампе: вылетают из случайных мест экрана к центру штампа
 const confetti=(n=46)=>{
-  if(REDUCE)return;ensureCv();
+  if(REDUCE)return;ensureCv();if(MOB)n=Math.ceil(n*.5);
   const cxm=innerWidth/2,cym=innerHeight*.42;
   for(let i=0;i<n;i++){
     const x=Math.random()*innerWidth,y=Math.random()*innerHeight,l=.7+Math.random()*.6;
@@ -131,7 +133,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('.btn,.pager butt
 // золотые искры на фоне
 if(!REDUCE){
   const em=document.createElement('div');em.className='embers';em.setAttribute('aria-hidden','true');
-  em.innerHTML=Array.from({length:innerWidth>800?18:9},()=>{const z=[4,6,8][Math.random()*3|0];return `<i style="left:${Math.random()*100}%;width:${z}px;height:${z}px;animation-duration:${9+Math.random()*9}s;animation-delay:-${Math.random()*14}s;--dx:${Math.round(Math.random()*80-40)}px;background:${PXC[Math.random()*3|0]}"></i>`}).join('');
+  em.innerHTML=Array.from({length:innerWidth>800?18:6},()=>{const z=[4,6,8][Math.random()*3|0];return `<i style="left:${Math.random()*100}%;width:${z}px;height:${z}px;animation-duration:${9+Math.random()*9}s;animation-delay:-${Math.random()*14}s;--dx:${Math.round(Math.random()*80-40)}px;background:${PXC[Math.random()*3|0]}"></i>`}).join('');
   document.body.appendChild(em);
 }
 const ask=(title,text,ok='Да',no='Отмена')=>new Promise(done=>{
