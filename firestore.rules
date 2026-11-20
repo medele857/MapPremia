@@ -28,7 +28,7 @@ service cloud.firestore {
         && request.resource.data.noms.size() <= 5;
     }
 
-    // голоса: id = uid_номинация, поэтому один голос на номинацию; менять и удалять может только админ
+    // голоса: id = uid_номинация, поэтому один голос на номинацию; свой голос можно сменить, пока голосование открыто, удалять может только админ
     match /votes/{id} {
       allow read: if isAdmin() || (request.auth != null && resource.data.uid == request.auth.uid);
       allow delete: if isAdmin();
@@ -37,6 +37,13 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['uid', 'nom', 'entry', 'created'])
         && request.resource.data.uid == request.auth.uid
         && id == request.auth.uid + '_' + request.resource.data.nom
+        && request.resource.data.nom in get(/databases/$(database)/documents/entries/$(request.resource.data.entry)).data.noms;
+      allow update: if request.auth != null
+        && votingOpen()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'nom', 'entry', 'created'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.nom == resource.data.nom
         && request.resource.data.nom in get(/databases/$(database)/documents/entries/$(request.resource.data.entry)).data.noms;
     }
   }

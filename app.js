@@ -72,6 +72,17 @@ sb.onclick=()=>{snd=!snd;try{localStorage.setItem('mp-snd',snd?'1':'0')}catch(e)
 let lastH=null;
 document.addEventListener('click',e=>{const t=e.target.closest('a,button,label');if(t&&t.id!=='snd')sfx(t.classList.contains('sh')?'pop':'click')},true);
 document.addEventListener('mouseover',e=>{const t=e.target.closest('.nom,.card,nav a,.btn');if(t&&t!==lastH)sfx('tick');lastH=t});
+const ask=(title,text,ok='Да',no='Отмена')=>new Promise(done=>{
+  const m=document.createElement('div');m.className='mdl';
+  m.innerHTML=`<div class="acard" role="dialog" aria-modal="true"><b>${esc(title)}</b><p>${esc(text)}</p><div class="bar"><button class="btn" id="ay" type="button">${esc(ok)}</button><button class="btn ghost" id="an" type="button">${esc(no)}</button></div></div>`;
+  document.body.appendChild(m);
+  const end=v=>{document.removeEventListener('keydown',kd);m.remove();done(v)};
+  const kd=e=>{if(e.key==='Escape')end(false)};
+  document.addEventListener('keydown',kd);
+  m.querySelector('#ay').onclick=()=>{sfx('click');end(true)};m.querySelector('#an').onclick=()=>end(false);
+  m.addEventListener('click',e=>{if(e.target===m)end(false)});
+  m.querySelector('#ay').focus();
+});
 const toast=m=>{let t=$('#toast');if(!t){document.body.insertAdjacentHTML('beforeend','<div id="toast" role="status"></div>');t=$('#toast')}t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),2200)};
 document.body.insertAdjacentHTML('beforeend',`<footer>МапПремия · Премия лучших майнкрафт карт · Текст-заглушка для футера · <a href="admin.html">Управление</a></footer><div id="timer"><i></i>Текст-заглушка этапа: <b id="tl">—</b></div>`);
 function tick(){const d=END-new Date();$('#tl').textContent=d>0?`${Math.floor(d/864e5)} д ${Math.floor(d%864e5/36e5)} ч`:'завершён'}
@@ -110,13 +121,13 @@ if(page==='nomination'){
   $('#grid').insertAdjacentHTML('beforebegin','<div id="vbar" class="vbar"></div>');
   // голосование: idle (не начато), open, paused, closed; один голос на номинацию
   let st='idle',my=null,u=null,res=null,first=true;
-  const MSG={idle:'Голосование ещё не началось.',open:'Голосование идёт. В каждой номинации можно отдать один голос, изменить его потом нельзя.',paused:'Голосование приостановлено. Скоро продолжим.',closed:'Голосование завершено.'};
+  const MSG={idle:'Голосование ещё не началось.',open:'Голосование идёт. В каждой номинации у тебя один голос, пока голосование идёт, его можно изменить.',paused:'Голосование приостановлено. Скоро продолжим.',closed:'Голосование завершено.'};
   const draw=()=>{
     const cnt=st==='closed'&&res&&res.counts?res.counts:null;
     const top=cnt?Math.max(0,...list.map(e=>cnt[e.id]||0)):0;
     $('#vbar').innerHTML='<b>'+MSG[st]+'</b>'+(st==='open'&&ready&&!u?'<button class="btn" id="vin" type="button">Войти через Google</button>':'')+(st==='open'&&my?'<span class="vmine">Ты уже проголосовал в этой номинации</span>':'');
     const vin=$('#vin');if(vin)vin.onclick=()=>AU.signInWithPopup(auth,new AU.GoogleAuthProvider()).catch(()=>{});
-    const vbtn=e=>{if(st==='open'){if(my===e.id)return '<button class="btn ghost" disabled>Твой голос</button>';if(my)return '<button class="btn ghost" disabled>Голос уже отдан</button>';return `<button class="btn vt" data-id="${esc(e.id)}">Голосовать</button>`}
+    const vbtn=e=>{if(st==='open'){if(my===e.id)return '<button class="btn ghost" disabled>Твой голос</button>';return `<button class="btn vt" data-id="${esc(e.id)}">${my?'Отдать голос сюда':'Голосовать'}</button>`}
       return st==='paused'?'<button class="btn ghost" disabled>Пауза</button>':''};
     const arr=cnt?[...list].sort((x,y)=>(cnt[y.id]||0)-(cnt[x.id]||0)):list;
     $('#grid').innerHTML=arr.length?arr.map(e=>{const win=cnt&&top>0&&(cnt[e.id]||0)===top;return `<div class="card${win?' win':''}" id="e-${hid(e.id)}"><a class="img" href="${safeUrl(e.link)}" target="_blank" rel="noopener">${imgOk(e.img)?`<img src="${esc(e.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:''}</a><div class="t">${win?'<span class="vbadge">Победитель</span>':''}<b>${esc(e.name)}</b><span>${esc(e.author)}</span>${cnt?`<span class="vcount">Голосов: ${cnt[e.id]||0}</span>`:''}${e.desc?`<p>${esc(e.desc)}</p>`:''}<div class="acts">${vbtn(e)}<a class="btn ghost" href="${safeUrl(e.link)}" target="_blank" rel="noopener">Minecraft Inside</a><button class="btn ghost sh" data-h="${hid(e.id)}">Поделиться</button></div></div></div>`}).join('')
@@ -130,13 +141,18 @@ if(page==='nomination'){
     if(v){
       if(!ready)return;
       if(!u){try{await AU.signInWithPopup(auth,new AU.GoogleAuthProvider())}catch(err){}return}
-      if(st!=='open'||my)return;
-      const en=list.find(x=>x.id===v.dataset.id);
-      if(!en||!confirm('Отдать голос за «'+en.name+'»? Изменить его потом нельзя.'))return;
+      if(st!=='open'||my===v.dataset.id)return;
+      const en=list.find(x=>x.id===v.dataset.id),prev=my&&list.find(x=>x.id===my);
+      if(!en)return;
+      const yes=prev?await ask('Изменить голос?','Сейчас твой голос за «'+prev.name+'». Отдать его за «'+en.name+'» в номинации «'+n.t+'»?','Изменить голос','Оставить как есть')
+        :await ask('Подтверди голос','Точно ли ты хочешь проголосовать за «'+en.name+'» в номинации «'+n.t+'»? Пока голосование идёт, голос можно изменить.','Да, голосую','Отмена');
+      if(!yes)return;
       v.disabled=true;
-      try{await FS.setDoc(FS.doc(db,'votes',u.uid+'_'+n.id),{uid:u.uid,nom:n.id,entry:en.id,created:FS.serverTimestamp()});my=en.id;sfx('ok');toast('Голос принят')}
-      catch(err){sfx('err');toast('Голос не принят: голосование закрыто или ты уже голосовал')}
+      try{await FS.setDoc(FS.doc(db,'votes',u.uid+'_'+n.id),{uid:u.uid,nom:n.id,entry:en.id,created:FS.serverTimestamp()});my=en.id;sfx('ok');toast(prev?'Голос изменён':'Голос принят')}
+      catch(err){sfx('err');toast('Голос не принят: возможно, голосование уже закрыто или на паузе')}
       try{await loadMy()}catch(err){}draw();return}
+    const ex=e.target.closest('a[target=_blank]');
+    if(ex){e.preventDefault();if(await ask('Перейти на Minecraft Inside?','Карта откроется на сайте minecraft-inside.ru в новой вкладке.','Перейти','Остаться'))window.open(ex.href,'_blank','noopener');return}
     const b=e.target.closest('.sh');if(!b)return;
     const url=location.origin+location.pathname+'?id='+encodeURIComponent(n.id)+'#e-'+b.dataset.h,name=b.closest('.card').querySelector('b').textContent,text='Голосуй за «'+name+'» в номинации «'+n.t+'» — МапПремия';
     try{if(navigator.share){await navigator.share({title:'МапПремия',text,url});return}}catch(err){if(err&&err.name==='AbortError')return}
