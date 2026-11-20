@@ -148,7 +148,7 @@ const ask=(title,text,ok='Да',no='Отмена')=>new Promise(done=>{
   m.querySelector('#ay').focus();
 });
 const toast=m=>{let t=$('#toast');if(!t){document.body.insertAdjacentHTML('beforeend','<div id="toast" role="status"></div>');t=$('#toast')}t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),2200)};
-document.body.insertAdjacentHTML('beforeend',`<footer>МапПремия · Премия лучших майнкрафт карт · Текст-заглушка для футера · <a href="admin.html">Управление</a></footer><div id="timer"><i></i>Текст-заглушка этапа: <b id="tl">—</b></div>`);
+document.body.insertAdjacentHTML('beforeend',`<footer><div class="fcon"><span>Связь с организаторами:</span><a href="https://t.me/mdlstudio" target="_blank" rel="noopener noreferrer">Telegram · mdlstudio</a><a href="https://t.me/qwer_team" target="_blank" rel="noopener noreferrer">Telegram · qwer_team</a></div>МапПремия · Премия лучших майнкрафт карт · Текст-заглушка для футера · <a href="admin.html">Управление</a></footer><div id="timer"><i></i>Текст-заглушка этапа: <b id="tl">—</b></div>`);
 function tick(){const d=END-new Date();$('#tl').textContent=d>0?`${Math.floor(d/864e5)} д ${Math.floor(d%864e5/36e5)} ч`:'завершён'}
 tick();setInterval(tick,6e4);
 

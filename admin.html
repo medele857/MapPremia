@@ -1,7 +1,7 @@
-<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#0d0a14"><title>Управление — МапПремия</title><link rel="preload" href="minecraft-ten-font-cyrillic.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="style.css?v=9"></head><body data-page="admin"><div id="load"><b>МапПремия</b><span><i></i></span></div><script>setTimeout(function(){var l=document.getElementById("load");l&&l.remove()},9000)</script><main><h2>Управление</h2><div id="box"></div></main>
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#0d0a14"><title>Управление — МапПремия</title><link rel="preload" href="minecraft-ten-font-cyrillic.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="style.css?v=11"><link rel="icon" href="favicon.ico?v=11" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=11"><link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png?v=11"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=11"></head><body data-page="admin"><div id="load"><b>МапПремия</b><span><i></i></span></div><script>setTimeout(function(){var l=document.getElementById("load");l&&l.remove()},9000)</script><main><h2>Управление</h2><div id="box"></div></main>
 <script type="module">
 import {ready,db,auth,FS,AU} from './fb.js';
-import {esc,DEFAULT,iconOf} from './app.js?v=9';
+import {esc,DEFAULT,iconOf} from './app.js?v=11';
 const $=s=>document.querySelector(s),box=$('#box'),LBL={new:'Новая',approved:'Одобрена',rejected:'Отклонена'};
 const col=n=>FS.collection(db,n),ref=(n,i)=>FS.doc(db,n,i);
 // сжимает картинку в маленький JPEG прямо внутри записи, поэтому её видят все, а не только ты

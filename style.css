@@ -383,3 +383,9 @@ header,main,footer{min-width:0}
  .grid{gap:1rem;margin-top:1.2rem}
 }
 @media(max-width:360px){.hero h1{font-size:8vw}nav a{font-size:.72rem;padding:.55rem .55rem}}
+
+.fcon{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;margin-bottom:1rem}
+.fcon span{color:var(--mute)}
+.fcon a{color:var(--acc);background:var(--bg2);border:2px solid var(--line);border-radius:4px;padding:.45rem .9rem;font-family:var(--f1);font-size:.85rem;box-shadow:0 3px 0 #000;transition:transform .12s,border-color .12s}
+.fcon a:hover{border-color:var(--acc);transform:translateY(-2px)}
+.fcon a:active{transform:translateY(2px);box-shadow:none}
