@@ -1,15 +1,17 @@
-<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Управление — МапПремия</title><link rel="preload" href="minecraft-ten-font-cyrillic.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="style.css"></head><body data-page="admin"><div id="load"><b>МапПремия</b><span><i></i></span></div><script>setTimeout(function(){var l=document.getElementById("load");l&&l.remove()},9000)</script><main><h2>Управление</h2><div id="box"></div></main>
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Управление — МапПремия</title><link rel="preload" href="minecraft-ten-font-cyrillic.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="style.css?v=4"></head><body data-page="admin"><div id="load"><b>МапПремия</b><span><i></i></span></div><script>setTimeout(function(){var l=document.getElementById("load");l&&l.remove()},9000)</script><main><h2>Управление</h2><div id="box"></div></main>
 <script type="module">
 import {ready,db,auth,FS,AU} from './fb.js';
-import {esc,DEFAULT} from './app.js';
+import {esc,DEFAULT,iconOf} from './app.js?v=4';
 const $=s=>document.querySelector(s),box=$('#box'),LBL={new:'Новая',approved:'Одобрена',rejected:'Отклонена'};
 const col=n=>FS.collection(db,n),ref=(n,i)=>FS.doc(db,n,i);
 // сжимает картинку в маленький JPEG прямо внутри записи, поэтому её видят все, а не только ты
 const shrink=src=>new Promise((res,rej)=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>{try{const k=Math.min(1,600/im.naturalWidth),w=Math.round(im.naturalWidth*k),h=Math.round(im.naturalHeight*k),c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(im,0,0,w,h);res(c.toDataURL('image/jpeg',.75))}catch(e){rej(e)}};im.onerror=()=>rej(new Error('load'));im.src=src});
+// иконка номинации: маленькие пиксельные картинки сохраняем как есть (PNG), большие уменьшаем
+const shrinkIcon=src=>new Promise((res,rej)=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>{try{const nw=im.naturalWidth,nh=im.naturalHeight,small=nw<=64,k=small?1:Math.min(1,192/Math.max(nw,nh)),w=Math.max(1,Math.round(nw*k)),h=Math.max(1,Math.round(nh*k)),c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.imageSmoothingEnabled=!small;x.drawImage(im,0,0,w,h);res(small?c.toDataURL('image/png'):c.toDataURL('image/webp',.85))}catch(e){rej(e)}};im.onerror=()=>rej(new Error('load'));im.src=src});
 // окно выбора превью: файл с компьютера или ссылка. Вернёт data-URL / ссылку / '' (без превью) / null (отмена)
-const pickImage=(title,pre)=>new Promise(done=>{
+const pickImage=(title,pre,icon)=>new Promise(done=>{const sh=icon?shrinkIcon:shrink;
   const m=document.createElement('div');m.className='mdl';
-  m.innerHTML='<div class="acard"><b>Превью для «'+esc(title)+'»</b><p>Лучше выбрать файл: тогда картинку точно увидят все.</p><p><input type="file" id="pf" accept="image/*"></p><p><input id="pu" placeholder="или ссылка на картинку" value="'+esc(pre||'')+'"></p><p id="pm"></p><div class="bar"><button class="btn" id="po">Сохранить</button><button class="btn ghost" id="pn">Без превью</button><button class="btn ghost" id="pc">Отмена</button></div></div>';
+  m.innerHTML='<div class="acard"><b>Превью для «'+esc(title)+'»</b><p>'+(icon?'Лучше всего маленькая пиксельная картинка (например 16×16, PNG с прозрачным фоном). Она появится на сайте сразу.':'Лучше выбрать файл: тогда картинку точно увидят все.')+'</p><p><input type="file" id="pf" accept="image/*"></p><p><input id="pu" placeholder="или ссылка на картинку" value="'+esc(pre||'')+'"></p><p id="pm"></p><div class="bar"><button class="btn" id="po">Сохранить</button><button class="btn ghost" id="pn">'+(icon?'Стандартная':'Без превью')+'</button><button class="btn ghost" id="pc">Отмена</button></div></div>';
   document.body.appendChild(m);
   const q=s=>m.querySelector(s),msg=t=>q('#pm').textContent=t,close=v=>{m.remove();done(v)};
   q('#pn').onclick=()=>close('');q('#pc').onclick=()=>close(null);
@@ -18,8 +20,8 @@ const pickImage=(title,pre)=>new Promise(done=>{
     if(!f&&!/^https?:\/\//i.test(u))return msg('Выбери файл или вставь ссылку.');
     q('#po').disabled=true;msg('Обрабатываю…');
     try{
-      if(f)return close(await shrink(URL.createObjectURL(f)));
-      try{close(await shrink(u))}catch(e){close(u)}
+      if(f)return close(await sh(URL.createObjectURL(f)));
+      try{close(await sh(u))}catch(e){close(u)}
     }catch(e){msg('Не получилось прочитать файл. Попробуй другую картинку.');q('#po').disabled=false}
   };
 });
@@ -29,10 +31,10 @@ else AU.onAuthStateChanged(auth,u=>{
   else start(u);
 });
 function start(u){
-  box.innerHTML='<p class="text">Вы вошли как '+esc(u.email)+' <button class="btn ghost" id="out">Выйти</button></p><div class="tabs"><button class="btn" data-t="apps">Заявки</button><button class="btn ghost" data-t="noms">Номинации</button></div><div id="tab"></div>';
+  box.innerHTML='<p class="text">Вы вошли как '+esc(u.email)+' <button class="btn ghost" id="out">Выйти</button></p><div class="tabs"><button class="btn" data-t="apps">Заявки</button><button class="btn ghost" data-t="noms">Номинации</button><button class="btn ghost" data-t="people">Участники</button></div><div id="tab"></div>';
   $('#out').onclick=()=>AU.signOut(auth);
   const tabs=box.querySelectorAll('[data-t]');
-  tabs.forEach(b=>b.onclick=()=>{tabs.forEach(x=>x.className='btn ghost');b.className='btn';b.dataset.t==='apps'?apps():noms()});
+  tabs.forEach(b=>b.onclick=()=>{tabs.forEach(x=>x.className='btn ghost');b.className='btn';({apps,noms,people})[b.dataset.t]()});
   apps();
 }
 const denied=()=>$('#tab').innerHTML='<p class="text">Нет доступа. Проверь, что твой email указан в firestore.rules.</p>';
@@ -65,17 +67,36 @@ async function apps(){
     });
   }catch(e){denied()}
 }
-const row=(id,n)=>'<div class="nrow" data-id="'+id+'"><input class="t" value="'+esc(n.t)+'" aria-label="Название"><input class="d" value="'+esc(n.d)+'" aria-label="Описание"><input class="c" type="color" value="'+esc(n.c||'#b8f25b')+'" aria-label="Цвет"><input class="o" type="number" value="'+(n.order??0)+'" aria-label="Порядок"><button class="btn" data-a="save">Сохранить</button><button class="btn ghost" data-a="del">Удалить</button></div>';
+async function people(){
+  const el=$('#tab');el.innerHTML='Загрузка…';
+  try{
+    const [es,ns]=await Promise.all([FS.getDocs(col('entries')),FS.getDocs(FS.query(col('nominations'),FS.orderBy('order')))]);
+    const list=ns.docs.length?ns.docs.map(d=>({id:d.id,t:d.data().t})):DEFAULT.map(n=>({id:n.id,t:n.t}));
+    el.innerHTML=es.docs.length?'<p class="text">Отметь номинации, в которых должна быть карта, и нажми «Сохранить». Чтобы перенести карту, сними старую номинацию и отметь новую.</p>'+es.docs.map(d=>{const e=d.data();return '<div class="acard" data-id="'+esc(d.id)+'"><b>'+esc(e.name)+'</b> — '+esc(e.author)+'<div class="chips">'+list.map(n=>'<label class="chip"><input type="checkbox" value="'+esc(n.id)+'"'+((e.noms||[]).includes(n.id)?' checked':'')+'>'+esc(n.t)+'</label>').join('')+'</div><div class="bar"><button class="btn" data-a="savep">Сохранить</button></div></div>'}).join(''):'<p class="text">Участников пока нет.</p>';
+    el.querySelectorAll('[data-a=savep]').forEach(b=>b.onclick=async()=>{
+      const card=b.closest('.acard'),id=card.dataset.id,sel=[...card.querySelectorAll('input:checked')].map(i=>i.value);
+      if(!sel.length)return alert('Отметь хотя бы одну номинацию. Чтобы убрать карту совсем, отклони её во вкладке «Заявки».');
+      b.disabled=true;
+      try{await FS.updateDoc(ref('entries',id),{noms:sel});try{await FS.updateDoc(ref('applications',id),{noms:sel})}catch(err){}b.textContent='Сохранено'}catch(err){b.textContent='Ошибка'}
+      setTimeout(()=>{b.textContent='Сохранить';b.disabled=false},1200);
+    });
+  }catch(e){denied()}
+}
+const row=(id,n)=>'<div class="nrow" data-id="'+id+'"><img class="nimg" src="'+esc(iconOf({id,img:n.img}))+'" alt=""><input class="t" value="'+esc(n.t)+'" aria-label="Название"><input class="d" value="'+esc(n.d)+'" aria-label="Описание"><input class="c" type="color" value="'+esc(n.c||'#b8f25b')+'" aria-label="Цвет"><input class="o" type="number" value="'+(n.order??0)+'" aria-label="Порядок"><button class="btn ghost" data-a="img">Картинка</button><button class="btn" data-a="save">Сохранить</button><button class="btn ghost" data-a="del">Удалить</button><span class="nid">'+(DEFAULT.some(x=>x.id===id)?'':'не из стандартных · ')+'id: '+esc(id)+'</span></div>';
 async function noms(){
   const el=$('#tab');el.innerHTML='Загрузка…';
   try{
     const s=await FS.getDocs(FS.query(col('nominations'),FS.orderBy('order')));
     const have=new Set(s.docs.map(d=>d.id)),miss=DEFAULT.map((n,i)=>[n,i]).filter(([n])=>!have.has(n.id));
-    el.innerHTML=(s.docs.length?s.docs.map(d=>row(d.id,d.data())).join(''):'')+(miss.length?'<p class="text">'+(s.docs.length?'Не хватает стандартных номинаций: '+miss.length+'. ':'В базе номинаций пока нет, сайт показывает стандартные. ')+'<button class="btn" id="seed">'+(s.docs.length?'Догрузить недостающие':'Загрузить стандартные в базу')+'</button></p>':'')+
+    el.innerHTML=(s.docs.length?'<p class="text">Всего номинаций: '+s.docs.length+'</p>'+s.docs.map(d=>row(d.id,d.data())).join(''):'')+(miss.length?'<p class="text">'+(s.docs.length?'Не хватает стандартных номинаций: '+miss.length+'. ':'В базе номинаций пока нет, сайт показывает стандартные. ')+'<button class="btn" id="seed">'+(s.docs.length?'Догрузить недостающие':'Загрузить стандартные в базу')+'</button></p>':'')+
      '<h3>Добавить номинацию</h3><div class="nrow" id="new"><input class="t" placeholder="Название"><input class="d" placeholder="Описание"><input class="c" type="color" value="#b8f25b"><input class="o" type="number" value="'+s.docs.length+'"><button class="btn" data-a="add">Добавить</button></div>';
     const sd=$('#seed');if(sd)sd.onclick=async()=>{for(const [n,i] of miss)await FS.setDoc(ref('nominations',n.id),{t:n.t,d:n.d,c:n.c,order:i});noms()};
     el.querySelectorAll('.nrow [data-a]').forEach(b=>b.onclick=async()=>{
-      const r=b.closest('.nrow'),v={t:r.querySelector('.t').value.trim(),d:r.querySelector('.d').value.trim(),c:r.querySelector('.c').value,order:+r.querySelector('.o').value||0};
+      const r=b.closest('.nrow');
+      if(b.dataset.a==='img'){const id=r.dataset.id,img=await pickImage(r.querySelector('.t').value,'',true);
+        if(img!==null){await FS.updateDoc(ref('nominations',id),{img});r.querySelector('.nimg').src=iconOf({id,img})}
+        return}
+      const v={t:r.querySelector('.t').value.trim(),d:r.querySelector('.d').value.trim(),c:r.querySelector('.c').value,order:+r.querySelector('.o').value||0};
       if(!v.t)return;
       if(b.dataset.a==='del'){if(!confirm('Удалить номинацию?'))return;await FS.deleteDoc(ref('nominations',r.dataset.id))}
       else if(b.dataset.a==='add')await FS.addDoc(col('nominations'),v);
