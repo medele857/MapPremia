@@ -1,4 +1,4 @@
-import {ready,db,auth,FS,AU} from './fb.js';
+import {ready,db,auth,FS,AU} from './fb.js?v=12';
 export const DEFAULT=[
  {id:'best',t:'Лучшая карта',d:'Главная номинация премии. Текст-заглушка.',c:'#b8f25b'},
  {id:'scary',t:'Самая страшная карта',d:'Текст-заглушка описания номинации.',c:'#ff6b5e'},

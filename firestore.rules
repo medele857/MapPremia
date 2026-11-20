@@ -10,6 +10,10 @@ service cloud.firestore {
     function votingOpen() {
       return get(/databases/$(database)/documents/settings/voting).data.status == 'open';
     }
+    // строка нужной длины
+    function str(v, min, max) {
+      return v is string && v.size() >= min && v.size() <= max;
+    }
 
     // публичное чтение, запись только админом
     match /nominations/{id} { allow read: if true; allow write: if isAdmin(); }
@@ -17,33 +21,56 @@ service cloud.firestore {
     match /settings/{id}    { allow read: if true; allow write: if isAdmin(); }
     match /results/{id}     { allow read: if true; allow write: if isAdmin(); }
 
-    // заявки: создать может любой вошедший, не больше 5 слотов (uid_1 ... uid_5) и не больше 5 номинаций
+    // заявки: создать может любой вошедший, не больше 5 слотов (uid_1 ... uid_5), не больше 5 номинаций,
+    // только известные поля с ограничением длины, ссылка только на minecraft-inside.ru
     match /applications/{id} {
       allow read, update, delete: if isAdmin();
       allow create: if request.auth != null
         && id.matches(request.auth.uid + '_[1-5]')
+        && request.resource.data.keys().hasOnly(['name', 'author', 'version', 'link', 'date', 'noms', 'media', 'desc', 'contact', 'uid', 'email', 'status', 'created'])
+        && request.resource.data.keys().hasAll(['name', 'author', 'link', 'noms', 'contact', 'uid', 'status'])
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.status == 'new'
+        && str(request.resource.data.name, 1, 200)
+        && str(request.resource.data.author, 1, 200)
+        && str(request.resource.data.get('version', ''), 0, 50)
+        && str(request.resource.data.link, 1, 500)
+        && request.resource.data.link.matches('^https?://([a-zA-Z0-9-]+\\.)*minecraft-inside\\.ru(/.*)?$')
+        && str(request.resource.data.get('date', ''), 0, 20)
+        && str(request.resource.data.get('media', ''), 0, 2000)
+        && str(request.resource.data.get('desc', ''), 0, 2000)
+        && str(request.resource.data.contact, 1, 200)
+        && str(request.resource.data.get('email', ''), 0, 320)
+        && request.resource.data.get('created', request.time) == request.time
+        && request.resource.data.noms is list
         && request.resource.data.noms.size() >= 1
         && request.resource.data.noms.size() <= 5;
     }
 
-    // голоса: id = uid_номинация, поэтому один голос на номинацию; свой голос можно сменить, пока голосование открыто, удалять может только админ
+    // голоса: id = uid_номинация, поэтому один голос на номинацию; свой голос можно сменить, пока голосование открыто,
+    // удалять может только админ
     match /votes/{id} {
       allow read: if isAdmin() || (request.auth != null && resource.data.uid == request.auth.uid);
       allow delete: if isAdmin();
       allow create: if request.auth != null
         && votingOpen()
         && request.resource.data.keys().hasOnly(['uid', 'nom', 'entry', 'created'])
+        && request.resource.data.keys().hasAll(['uid', 'nom', 'entry', 'created'])
         && request.resource.data.uid == request.auth.uid
+        && str(request.resource.data.nom, 1, 60)
+        && str(request.resource.data.entry, 1, 200)
+        && request.resource.data.created == request.time
         && id == request.auth.uid + '_' + request.resource.data.nom
         && request.resource.data.nom in get(/databases/$(database)/documents/entries/$(request.resource.data.entry)).data.noms;
       allow update: if request.auth != null
         && votingOpen()
         && resource.data.uid == request.auth.uid
         && request.resource.data.keys().hasOnly(['uid', 'nom', 'entry', 'created'])
+        && request.resource.data.keys().hasAll(['uid', 'nom', 'entry', 'created'])
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.nom == resource.data.nom
+        && str(request.resource.data.entry, 1, 200)
+        && request.resource.data.created == request.time
         && request.resource.data.nom in get(/databases/$(database)/documents/entries/$(request.resource.data.entry)).data.noms;
     }
   }
