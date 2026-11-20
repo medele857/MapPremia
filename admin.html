@@ -1,7 +1,7 @@
-<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Управление — МапПремия</title><link rel="preload" href="minecraft-ten-font-cyrillic.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="style.css?v=4"></head><body data-page="admin"><div id="load"><b>МапПремия</b><span><i></i></span></div><script>setTimeout(function(){var l=document.getElementById("load");l&&l.remove()},9000)</script><main><h2>Управление</h2><div id="box"></div></main>
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Управление — МапПремия</title><link rel="preload" href="minecraft-ten-font-cyrillic.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="style.css?v=5"></head><body data-page="admin"><div id="load"><b>МапПремия</b><span><i></i></span></div><script>setTimeout(function(){var l=document.getElementById("load");l&&l.remove()},9000)</script><main><h2>Управление</h2><div id="box"></div></main>
 <script type="module">
 import {ready,db,auth,FS,AU} from './fb.js';
-import {esc,DEFAULT,iconOf} from './app.js?v=4';
+import {esc,DEFAULT,iconOf} from './app.js?v=5';
 const $=s=>document.querySelector(s),box=$('#box'),LBL={new:'Новая',approved:'Одобрена',rejected:'Отклонена'};
 const col=n=>FS.collection(db,n),ref=(n,i)=>FS.doc(db,n,i);
 // сжимает картинку в маленький JPEG прямо внутри записи, поэтому её видят все, а не только ты
@@ -31,10 +31,10 @@ else AU.onAuthStateChanged(auth,u=>{
   else start(u);
 });
 function start(u){
-  box.innerHTML='<p class="text">Вы вошли как '+esc(u.email)+' <button class="btn ghost" id="out">Выйти</button></p><div class="tabs"><button class="btn" data-t="apps">Заявки</button><button class="btn ghost" data-t="noms">Номинации</button><button class="btn ghost" data-t="people">Участники</button></div><div id="tab"></div>';
+  box.innerHTML='<p class="text">Вы вошли как '+esc(u.email)+' <button class="btn ghost" id="out">Выйти</button></p><div class="tabs"><button class="btn" data-t="apps">Заявки</button><button class="btn ghost" data-t="noms">Номинации</button><button class="btn ghost" data-t="people">Участники</button><button class="btn ghost" data-t="vote">Голосование</button></div><div id="tab"></div>';
   $('#out').onclick=()=>AU.signOut(auth);
   const tabs=box.querySelectorAll('[data-t]');
-  tabs.forEach(b=>b.onclick=()=>{tabs.forEach(x=>x.className='btn ghost');b.className='btn';({apps,noms,people})[b.dataset.t]()});
+  tabs.forEach(b=>b.onclick=()=>{tabs.forEach(x=>x.className='btn ghost');b.className='btn';({apps,noms,people,vote})[b.dataset.t]()});
   apps();
 }
 const denied=()=>$('#tab').innerHTML='<p class="text">Нет доступа. Проверь, что твой email указан в firestore.rules.</p>';
@@ -79,6 +79,42 @@ async function people(){
       b.disabled=true;
       try{await FS.updateDoc(ref('entries',id),{noms:sel});try{await FS.updateDoc(ref('applications',id),{noms:sel})}catch(err){}b.textContent='Сохранено'}catch(err){b.textContent='Ошибка'}
       setTimeout(()=>{b.textContent='Сохранить';b.disabled=false},1200);
+    });
+  }catch(e){denied()}
+}
+async function vote(){
+  const el=$('#tab');el.innerHTML='Загрузка…';
+  try{
+    const [ss,vs,es,ns]=await Promise.all([FS.getDoc(ref('settings','voting')),FS.getDocs(col('votes')),FS.getDocs(col('entries')),FS.getDocs(FS.query(col('nominations'),FS.orderBy('order')))]);
+    const st=(ss.exists()&&ss.data().status)||'idle';
+    const list=ns.docs.length?ns.docs.map(d=>({id:d.id,t:d.data().t})):DEFAULT.map(n=>({id:n.id,t:n.t}));
+    const ent=es.docs.map(d=>({id:d.id,...d.data()}));
+    const tally={};vs.docs.forEach(d=>{const v=d.data(),t=tally[v.nom]=tally[v.nom]||{};t[v.entry]=(t[v.entry]||0)+1});
+    const NAME={idle:'не начато',open:'идёт',paused:'приостановлено',closed:'завершено'};
+    const BTN={idle:[['open','Начать голосование']],open:[['paused','Приостановить'],['closed','Закончить голосование']],paused:[['open','Продолжить'],['closed','Закончить голосование']],closed:[]};
+    el.innerHTML='<div class="acard"><b>Статус: '+NAME[st]+'</b> · всего голосов: '+vs.docs.length+'<p class="text">Один голос на номинацию. Результаты видны только тебе, на сайте они откроются, когда ты нажмёшь «Закончить голосование».</p><div class="bar">'
+      +BTN[st].map(x=>'<button class="btn'+(x[0]==='closed'?' ghost':'')+'" data-s="'+x[0]+'">'+x[1]+'</button>').join('')
+      +'<button class="btn ghost" data-s="reset">Сбросить всё (тест)</button><button class="btn ghost" data-s="refresh">Обновить</button></div></div>'
+      +list.map(n=>{const t=tally[n.id]||{},rows=ent.filter(e=>(e.noms||[]).includes(n.id)).map(e=>({e,c:t[e.id]||0})).sort((x,y)=>y.c-x.c);
+        return '<div class="acard"><b>'+esc(n.t)+'</b>'+(rows.length?rows.map(r=>'<p>'+esc(r.e.name)+': <b>'+r.c+'</b></p>').join(''):'<p class="text">Участников нет.</p>')+'</div>'}).join('');
+    const setSt=s=>FS.setDoc(ref('settings','voting'),{status:s,updated:FS.serverTimestamp()});
+    el.querySelectorAll('[data-s]').forEach(b=>b.onclick=async()=>{
+      const s=b.dataset.s;
+      if(s==='refresh')return vote();
+      b.disabled=true;
+      try{
+        if(s==='closed'){
+          if(!confirm('Закончить голосование? Результаты станут видны всем.')){b.disabled=false;return}
+          for(const n of list){const c=tally[n.id]||{};await FS.setDoc(ref('results',n.id),{counts:c,total:Object.values(c).reduce((a,x)=>a+x,0),at:FS.serverTimestamp()})}
+          await setSt('closed');
+        }else if(s==='reset'){
+          if(!confirm('Удалить ВСЕ голоса и результаты и вернуть голосование в состояние «не начато»?')){b.disabled=false;return}
+          const rs=await FS.getDocs(col('results'));
+          await Promise.all([...vs.docs.map(d=>FS.deleteDoc(d.ref)),...rs.docs.map(d=>FS.deleteDoc(d.ref))]);
+          await setSt('idle');
+        }else await setSt(s);
+      }catch(err){alert('Не получилось: '+err.message)}
+      vote();
     });
   }catch(e){denied()}
 }

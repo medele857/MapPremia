@@ -65,7 +65,7 @@ setScale(sc);
 const links=[['index.html','Главная','home'],['nominations.html','Номинации','nominations'],['apply.html','Подать заявку','apply'],['rules.html','Правила','rules']];
 const cur=page==='nomination'?'nominations':page;
 document.body.insertAdjacentHTML('afterbegin',`<header><a class="logo" href="index.html">МапПремия</a><nav>${links.map(l=>`<a href="${l[0]}"${l[2]===cur?' class="on"':''}>${l[1]}</a>`).join('')}</nav>
-<div class="scale" role="group" aria-label="Масштаб сайта"><button id="sm" aria-label="Уменьшить">-</button><button id="sv" title="Сбросить масштаб">100%</button><button id="sp" aria-label="Увеличить">+</button></div><button class="btn ghost sndbtn" id="snd"></button></header>`);
+<div class="hset"><div class="scale" role="group" aria-label="Масштаб сайта"><button id="sm" aria-label="Уменьшить">-</button><button id="sv" title="Сбросить масштаб">100%</button><button id="sp" aria-label="Увеличить">+</button></div><button class="btn ghost sndbtn" id="snd"></button></div></header>`);
 $('#sm').onclick=()=>setScale(sc-10);$('#sp').onclick=()=>setScale(sc+10);$('#sv').onclick=()=>setScale(100);setScale(sc);
 const sb=$('#snd'),lbl=()=>sb.textContent=snd?'Звук: вкл':'Звук: выкл';lbl();
 sb.onclick=()=>{snd=!snd;try{localStorage.setItem('mp-snd',snd?'1':'0')}catch(e){}lbl();sfx('pop')};
@@ -107,20 +107,57 @@ if(page==='nomination'){
   const ic=iconOf(n);
   $('#nhead').innerHTML=`<div class="nbox">${ic?`<img class="nico" src="${esc(ic)}" alt="" onerror="this.remove()">`:''}<div><h2>${esc(n.t)}</h2><p>${esc(n.d)}</p></div></div>`;
   const list=ent.filter(e=>(e.noms||[]).includes(n.id));
-  $('#grid').innerHTML=list.length?list.map(e=>`<div class="card" id="e-${hid(e.id)}"><a class="img" href="${safeUrl(e.link)}" target="_blank" rel="noopener">${imgOk(e.img)?`<img src="${esc(e.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:''}</a><div class="t"><b>${esc(e.name)}</b><span>${esc(e.author)}</span>${e.desc?`<p>${esc(e.desc)}</p>`:''}<div class="acts"><a class="btn" href="${safeUrl(e.link)}" target="_blank" rel="noopener">Minecraft Inside</a><button class="btn ghost sh" data-h="${hid(e.id)}">Поделиться</button></div></div></div>`).join('')
-   :'<p class="text">Участников пока нет. Текст-заглушка.</p>';
-  $('#grid').addEventListener('click',async e=>{const b=e.target.closest('.sh');if(!b)return;
+  $('#grid').insertAdjacentHTML('beforebegin','<div id="vbar" class="vbar"></div>');
+  // голосование: idle (не начато), open, paused, closed; один голос на номинацию
+  let st='idle',my=null,u=null,res=null,first=true;
+  const MSG={idle:'Голосование ещё не началось.',open:'Голосование идёт. В каждой номинации можно отдать один голос, изменить его потом нельзя.',paused:'Голосование приостановлено. Скоро продолжим.',closed:'Голосование завершено.'};
+  const draw=()=>{
+    const cnt=st==='closed'&&res&&res.counts?res.counts:null;
+    const top=cnt?Math.max(0,...list.map(e=>cnt[e.id]||0)):0;
+    $('#vbar').innerHTML='<b>'+MSG[st]+'</b>'+(st==='open'&&ready&&!u?'<button class="btn" id="vin" type="button">Войти через Google</button>':'')+(st==='open'&&my?'<span class="vmine">Ты уже проголосовал в этой номинации</span>':'');
+    const vin=$('#vin');if(vin)vin.onclick=()=>AU.signInWithPopup(auth,new AU.GoogleAuthProvider()).catch(()=>{});
+    const vbtn=e=>{if(st==='open'){if(my===e.id)return '<button class="btn ghost" disabled>Твой голос</button>';if(my)return '<button class="btn ghost" disabled>Голос уже отдан</button>';return `<button class="btn vt" data-id="${esc(e.id)}">Голосовать</button>`}
+      return st==='paused'?'<button class="btn ghost" disabled>Пауза</button>':''};
+    const arr=cnt?[...list].sort((x,y)=>(cnt[y.id]||0)-(cnt[x.id]||0)):list;
+    $('#grid').innerHTML=arr.length?arr.map(e=>{const win=cnt&&top>0&&(cnt[e.id]||0)===top;return `<div class="card${win?' win':''}" id="e-${hid(e.id)}"><a class="img" href="${safeUrl(e.link)}" target="_blank" rel="noopener">${imgOk(e.img)?`<img src="${esc(e.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:''}</a><div class="t">${win?'<span class="vbadge">Победитель</span>':''}<b>${esc(e.name)}</b><span>${esc(e.author)}</span>${cnt?`<span class="vcount">Голосов: ${cnt[e.id]||0}</span>`:''}${e.desc?`<p>${esc(e.desc)}</p>`:''}<div class="acts">${vbtn(e)}<a class="btn ghost" href="${safeUrl(e.link)}" target="_blank" rel="noopener">Minecraft Inside</a><button class="btn ghost sh" data-h="${hid(e.id)}">Поделиться</button></div></div></div>`}).join('')
+     :'<p class="text">Участников пока нет. Текст-заглушка.</p>';
+    const hl=location.hash.startsWith('#e-')&&document.getElementById(location.hash.slice(1));if(hl){hl.classList.add('hl');if(first)hl.scrollIntoView({block:'center'})}
+    first=false;
+  };
+  draw();
+  $('#grid').addEventListener('click',async e=>{
+    const v=e.target.closest('.vt');
+    if(v){
+      if(!ready)return;
+      if(!u){try{await AU.signInWithPopup(auth,new AU.GoogleAuthProvider())}catch(err){}return}
+      if(st!=='open'||my)return;
+      const en=list.find(x=>x.id===v.dataset.id);
+      if(!en||!confirm('Отдать голос за «'+en.name+'»? Изменить его потом нельзя.'))return;
+      v.disabled=true;
+      try{await FS.setDoc(FS.doc(db,'votes',u.uid+'_'+n.id),{uid:u.uid,nom:n.id,entry:en.id,created:FS.serverTimestamp()});my=en.id;sfx('ok');toast('Голос принят')}
+      catch(err){sfx('err');toast('Голос не принят: голосование закрыто или ты уже голосовал')}
+      try{await loadMy()}catch(err){}draw();return}
+    const b=e.target.closest('.sh');if(!b)return;
     const url=location.origin+location.pathname+'?id='+encodeURIComponent(n.id)+'#e-'+b.dataset.h,name=b.closest('.card').querySelector('b').textContent,text='Голосуй за «'+name+'» в номинации «'+n.t+'» — МапПремия';
     try{if(navigator.share){await navigator.share({title:'МапПремия',text,url});return}}catch(err){if(err&&err.name==='AbortError')return}
     try{await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}catch(err){prompt('Скопируй ссылку:',url)}});
-  const hl=location.hash.startsWith('#e-')&&document.getElementById(location.hash.slice(1));if(hl){hl.classList.add('hl');hl.scrollIntoView({block:'center'})}
+  const loadMy=async()=>{if(!u){my=null;return}const s=await FS.getDocs(FS.query(FS.collection(db,'votes'),FS.where('uid','==',u.uid)));const d=s.docs.map(x=>x.data()).find(x=>x.nom===n.id);my=d?d.entry:null};
+  if(ready){
+    AU.onAuthStateChanged(auth,async x=>{u=x;my=null;try{await loadMy()}catch(err){}draw()});
+    try{FS.onSnapshot(FS.doc(db,'settings','voting'),async s=>{st=(s.exists()&&s.data().status)||'idle';
+      if(st==='closed'){if(!res)try{const r=await FS.getDoc(FS.doc(db,'results',n.id));res=r.exists()?r.data():null}catch(err){}}else res=null;
+      draw()},()=>{})}catch(err){}
+  }
 }
 if(page==='apply'){
   const noms=await getNoms();
   $('#formNoms').innerHTML=noms.map(n=>{const ic=iconOf(n);return `<label class="ncard"><input type="checkbox" name="noms" value="${esc(n.id)}">${ic?`<img src="${esc(ic)}" alt="" onerror="this.remove()">`:''}<span>${esc(n.t)}</span></label>`}).join('');
   const msg=t=>$('#msg').textContent=t,form=$('#form'),ab=$('#authbox'),done=$('#done');
   $('#dimg').src=ICONS.best;
-  const upd=()=>{const k=form.querySelectorAll('[name=noms]:checked').length;$('#ncount').textContent=k?'выбрано: '+k:'выбери хотя бы одну'};
+  const MAXN=5;
+  const upd=()=>{const bs=[...form.querySelectorAll('[name=noms]')],k=bs.filter(x=>x.checked).length;
+    $('#ncount').textContent='выбрано: '+k+' из '+MAXN;
+    bs.forEach(x=>{x.disabled=!x.checked&&k>=MAXN;x.closest('.ncard').classList.toggle('dis',x.disabled)})};
   form.addEventListener('change',e=>{if(e.target.name==='noms')upd()});upd();
   // подсказка под полем ссылки
   const lh=$('#lh'),li=form.elements.link;
@@ -141,10 +178,10 @@ if(page==='apply'){
     e.preventDefault();const f=e.target,fd=new FormData(f),g=(k,m)=>String(fd.get(k)||'').trim().slice(0,m),u=ready&&auth.currentUser;
     if(!u)return msg('Сначала войди через Google.');
     if(!okHost(g('link',500))){sfx('err');return msg('Нужна ссылка на карту на minecraft-inside.ru')}
-    if(!fd.getAll('noms').length){sfx('err');return msg('Выбери хотя бы одну номинацию.')}
+    if(!fd.getAll('noms').length){sfx('err');return msg('Выбери хотя бы одну номинацию (максимум 5).')}
     const b=f.querySelector('button[type=submit]');b.disabled=true;b.textContent='Отправляю…';msg('');
     const data={name:g('name',200),author:g('author',200),version:g('version',50),link:g('link',500),date:g('date',20),
-      noms:fd.getAll('noms'),media:g('media',2000),desc:g('desc',2000),contact:g('contact',200),
+      noms:fd.getAll('noms').slice(0,5),media:g('media',2000),desc:g('desc',2000),contact:g('contact',200),
       uid:u.uid,email:u.email,status:'new',created:FS.serverTimestamp()};
     // не больше 5 заявок с одного аккаунта: id = uid_1 ... uid_5, занятые слоты база отклоняет
     let ok=false;

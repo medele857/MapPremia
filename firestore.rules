@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email == 'ТВОЙ_EMAIL@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+    function votingOpen() {
+      return get(/databases/$(database)/documents/settings/voting).data.status == 'open';
+    }
+
+    // публичное чтение, запись только админом
+    match /nominations/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /entries/{id}     { allow read: if true; allow write: if isAdmin(); }
+    match /settings/{id}    { allow read: if true; allow write: if isAdmin(); }
+    match /results/{id}     { allow read: if true; allow write: if isAdmin(); }
+
+    // заявки: создать может любой вошедший, не больше 5 слотов (uid_1 ... uid_5) и не больше 5 номинаций
+    match /applications/{id} {
+      allow read, update, delete: if isAdmin();
+      allow create: if request.auth != null
+        && id.matches(request.auth.uid + '_[1-5]')
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'new'
+        && request.resource.data.noms.size() >= 1
+        && request.resource.data.noms.size() <= 5;
+    }
+
+    // голоса: id = uid_номинация, поэтому один голос на номинацию; менять и удалять может только админ
+    match /votes/{id} {
+      allow read: if isAdmin() || (request.auth != null && resource.data.uid == request.auth.uid);
+      allow delete: if isAdmin();
+      allow create: if request.auth != null
+        && votingOpen()
+        && request.resource.data.keys().hasOnly(['uid', 'nom', 'entry', 'created'])
+        && request.resource.data.uid == request.auth.uid
+        && id == request.auth.uid + '_' + request.resource.data.nom
+        && request.resource.data.nom in get(/databases/$(database)/documents/entries/$(request.resource.data.entry)).data.noms;
+    }
+  }
+}

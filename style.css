@@ -279,3 +279,25 @@ body[data-page=nominations] main{padding-right:calc(clamp(1rem,4vw,3rem) + 2.8re
 }
 
 .npage:first-child{scroll-snap-align:none}
+
+/* шапка: название слева, меню по центру, настройки справа */
+header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:.5rem 1rem;text-align:left}
+header .logo{justify-self:start}
+header nav{justify-self:center;justify-content:center}
+.hset{justify-self:end;display:flex;align-items:center;gap:.6rem}
+@media(max-width:1020px){
+ header{grid-template-columns:1fr auto;grid-template-areas:"logo set" "nav nav"}
+ header .logo{grid-area:logo}.hset{grid-area:set}header nav{grid-area:nav}
+}
+.limits{display:inline-block;margin-top:.9rem;padding:.6rem 1rem;border:3px solid var(--line);border-left:6px solid var(--acc);background:var(--bg2);border-radius:6px;color:var(--tx)!important;font-size:.95rem}
+.ncard.dis{opacity:.4;cursor:not-allowed}.ncard.dis input{cursor:not-allowed}
+
+/* голосование */
+.vbar{display:flex;flex-wrap:wrap;align-items:center;gap:.8rem 1.2rem;margin:1.2rem 0;padding:.9rem 1.2rem;border:3px solid var(--line);border-left:6px solid var(--acc);background:var(--bg2);border-radius:6px}
+.vbar .vmine{color:#8fd16b}
+.vbadge{display:inline-block;align-self:flex-start;background:var(--acc);color:var(--ink);padding:.15rem .6rem;border-radius:4px;box-shadow:0 3px 0 #a87a00;margin-bottom:.4rem}
+.vcount{color:var(--acc)}
+.card.win{outline:4px solid var(--acc);outline-offset:4px}
+.btn[disabled]{opacity:.65;cursor:default}
+.card .t .vbadge{color:var(--ink)}
+.card .t .vcount{color:var(--acc)}
