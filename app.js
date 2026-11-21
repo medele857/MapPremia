@@ -1,4 +1,4 @@
-import {ready,db,auth,FS,AU} from './fb.js?v=13';
+import {ready,db,auth,FS,AU} from './fb.js?v=14';
 export const DEFAULT=[
  {id:'best',t:'Лучшая карта',d:'Главная номинация премии. Текст-заглушка.',c:'#b8f25b'},
  {id:'scary',t:'Самая страшная карта',d:'Текст-заглушка описания номинации.',c:'#ff6b5e'},
@@ -119,7 +119,7 @@ const confetti=(n=46)=>{
   const cxm=innerWidth/2,cym=innerHeight*.42;
   for(let i=0;i<n;i++){
     const x=Math.random()*innerWidth,y=Math.random()*innerHeight,l=.7+Math.random()*.6;
-    const dx=cxm-x,dy=cym-y,d=Math.hypot(dx,dy)||1,v=130+Math.random()*180,sw=(Math.random()-.5)*160;
+    const dx=cxm-x,dy=cym-y,d=Math.hypot(dx,dy)||1,v=140+Math.random()*180,sw=(Math.random()-.5)*160;
     add({x,y,vx:dx/d*v-dy/d*sw,vy:dy/d*v+dx/d*sw,g:60,s:[2,4][Math.random()*2|0],c:pick(),life:l,max:l});
   }
 };
