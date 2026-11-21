@@ -1,7 +1,7 @@
-<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#0d0a14"><title>Управление — МапПремия</title><link rel="preload" href="minecraft-ten-font-cyrillic.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="style.css?v=14"><link rel="icon" href="favicon.ico?v=14" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=14"><link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png?v=14"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=14"></head><body data-page="admin"><div id="load"><b>МапПремия</b><span><i></i></span></div><script>setTimeout(function(){var l=document.getElementById("load");l&&l.remove()},9000)</script><main><h2>Управление</h2><div id="box"></div></main>
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#0d0a14"><title>Управление — МапПремия</title><link rel="preload" href="minecraft-ten-font-cyrillic.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="style.css?v=16"><link rel="icon" href="favicon.ico?v=16" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=16"><link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png?v=16"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=16"></head><body data-page="admin"><div id="load"><b>МапПремия</b><span><i></i></span></div><script>setTimeout(function(){var l=document.getElementById("load");l&&l.remove()},9000)</script><main><h2>Управление</h2><div id="box"></div></main>
 <script type="module">
-import {ready,db,auth,FS,AU} from './fb.js?v=14';
-import {esc,DEFAULT,iconOf} from './app.js?v=14';
+import {ready,db,auth,FS,AU} from './fb.js?v=16';
+import {esc,DEFAULT,iconOf} from './app.js?v=16';
 const $=s=>document.querySelector(s),box=$('#box'),LBL={new:'Новая',approved:'Одобрена',rejected:'Отклонена'};
 const col=n=>FS.collection(db,n),ref=(n,i)=>FS.doc(db,n,i);
 // сжимает картинку в маленький JPEG прямо внутри записи, поэтому её видят все, а не только ты
@@ -31,10 +31,10 @@ else AU.onAuthStateChanged(auth,u=>{
   else start(u);
 });
 function start(u){
-  box.innerHTML='<p class="text">Вы вошли как '+esc(u.email)+' <button class="btn ghost" id="out">Выйти</button></p><div class="tabs"><button class="btn" data-t="apps">Заявки</button><button class="btn ghost" data-t="noms">Номинации</button><button class="btn ghost" data-t="people">Участники</button><button class="btn ghost" data-t="vote">Голосование</button></div><div id="tab"></div>';
+  box.innerHTML='<p class="text">Вы вошли как '+esc(u.email)+' <button class="btn ghost" id="out">Выйти</button></p><div class="tabs"><button class="btn" data-t="apps">Заявки</button><button class="btn ghost" data-t="noms">Номинации</button><button class="btn ghost" data-t="people">Участники</button><button class="btn ghost" data-t="vote">Голосование</button><button class="btn ghost" data-t="look">Фон</button></div><div id="tab"></div>';
   $('#out').onclick=()=>AU.signOut(auth);
   const tabs=box.querySelectorAll('[data-t]');
-  tabs.forEach(b=>b.onclick=()=>{tabs.forEach(x=>x.className='btn ghost');b.className='btn';({apps,noms,people,vote})[b.dataset.t]()});
+  tabs.forEach(b=>b.onclick=()=>{tabs.forEach(x=>x.className='btn ghost');b.className='btn';({apps,noms,people,vote,look})[b.dataset.t]()});
   apps();
 }
 const denied=()=>$('#tab').innerHTML='<p class="text">Нет доступа. Проверь, что твой email указан в firestore.rules.</p>';
@@ -116,6 +116,29 @@ async function vote(){
       }catch(err){alert('Не получилось: '+err.message)}
       vote();
     });
+  }catch(e){denied()}
+}
+// фон сайта: сжимаем выбранный файл в JPEG (до ~800 КБ, лимит записи в базе 1 МБ) и кладём в settings/site
+const shrinkBg=f=>new Promise((res,rej)=>{const im=new Image();im.onload=()=>{try{let W=Math.min(1920,im.naturalWidth);for(let t=0;t<6;t++){const k=W/im.naturalWidth,c=document.createElement('canvas');c.width=W;c.height=Math.max(1,Math.round(im.naturalHeight*k));c.getContext('2d').drawImage(im,0,0,c.width,c.height);const d=c.toDataURL('image/jpeg',Math.max(.5,.8-t*.06));if(d.length<800000)return res(d);W=Math.round(W*.8)}rej(new Error('big'))}catch(e){rej(e)}};im.onerror=()=>rej(new Error('load'));im.src=URL.createObjectURL(f)});
+async function look(){
+  const el=$('#tab');el.innerHTML='Загрузка…';
+  try{
+    const s=await FS.getDoc(ref('settings','site')),cur=(s.exists()&&s.data().bg)||'';
+    el.innerHTML='<div class="acard"><b>Фон сайта</b><p class="text">Выбери картинку со своего компьютера: она станет фоном на всех страницах. Лучше широкая, например 1920×1080. Поверх неё сайт чуть затемняется, чтобы текст читался.</p>'
+      +(cur?'<img class="bgprev" src="'+esc(cur)+'" alt="">':'<p class="text">Сейчас стандартный тёмно-фиолетовый фон.</p>')
+      +'<p><input type="file" id="bgf" accept="image/*"></p><p class="text" id="bgm"></p><button class="btn" id="bgs">Сохранить фон</button><button class="btn ghost" id="bgr">Вернуть стандартный</button></div>';
+    const msg=t=>$('#bgm').textContent=t;
+    $('#bgs').onclick=async()=>{
+      const f=$('#bgf').files[0];if(!f)return msg('Сначала выбери файл.');
+      $('#bgs').disabled=true;msg('Обрабатываю…');
+      try{const bg=await shrinkBg(f);await FS.setDoc(ref('settings','site'),{bg,updated:FS.serverTimestamp()});look()}
+      catch(err){msg('Не получилось. Попробуй другую картинку.');$('#bgs').disabled=false}
+    };
+    $('#bgr').onclick=async()=>{
+      if(!cur)return msg('Уже стандартный фон.');
+      if(!confirm('Вернуть стандартный фон?'))return;
+      try{await FS.setDoc(ref('settings','site'),{bg:'',updated:FS.serverTimestamp()});look()}catch(err){msg('Не получилось: '+err.message)}
+    };
   }catch(e){denied()}
 }
 const row=(id,n)=>'<div class="nrow" data-id="'+id+'"><img class="nimg" src="'+esc(iconOf({id,img:n.img}))+'" alt=""><input class="t" value="'+esc(n.t)+'" aria-label="Название"><input class="d" value="'+esc(n.d)+'" aria-label="Описание"><input class="c" type="color" value="'+esc(n.c||'#b8f25b')+'" aria-label="Цвет"><input class="o" type="number" value="'+(n.order??0)+'" aria-label="Порядок"><button class="btn ghost" data-a="img">Картинка</button><button class="btn" data-a="save">Сохранить</button><button class="btn ghost" data-a="del">Удалить</button><span class="nid">'+(DEFAULT.some(x=>x.id===id)?'':'не из стандартных · ')+'id: '+esc(id)+'</span></div>';
