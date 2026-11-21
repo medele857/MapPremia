@@ -1,17 +1,19 @@
-<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#0d0a14"><title>Управление — МапПремия</title><link rel="preload" href="minecraft-ten-font-cyrillic.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="style.css?v=16"><link rel="icon" href="favicon.ico?v=16" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=16"><link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png?v=16"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=16"></head><body data-page="admin"><div id="load"><b>МапПремия</b><span><i></i></span></div><script>setTimeout(function(){var l=document.getElementById("load");l&&l.remove()},9000)</script><main><h2>Управление</h2><div id="box"></div></main>
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#0d0a14"><title>Управление — МапПремия</title><link rel="preload" href="minecraft-ten-font-cyrillic.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="style.css?v=19"><link rel="icon" href="favicon.ico?v=19" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=19"><link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png?v=19"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=19"></head><body data-page="admin"><div id="load"><b>МапПремия</b><span><i></i></span></div><script>setTimeout(function(){var l=document.getElementById("load");l&&l.remove()},9000)</script><main><h2>Управление</h2><div id="box"></div></main>
 <script type="module">
-import {ready,db,auth,FS,AU} from './fb.js?v=16';
-import {esc,DEFAULT,iconOf} from './app.js?v=16';
+import {ready,db,auth,FS,AU} from './fb.js?v=19';
+import {esc,DEFAULT,iconOf} from './app.js?v=19';
 const $=s=>document.querySelector(s),box=$('#box'),LBL={new:'Новая',approved:'Одобрена',rejected:'Отклонена'};
 const col=n=>FS.collection(db,n),ref=(n,i)=>FS.doc(db,n,i);
 // сжимает картинку в маленький JPEG прямо внутри записи, поэтому её видят все, а не только ты
 const shrink=src=>new Promise((res,rej)=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>{try{const k=Math.min(1,600/im.naturalWidth),w=Math.round(im.naturalWidth*k),h=Math.round(im.naturalHeight*k),c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(im,0,0,w,h);res(c.toDataURL('image/jpeg',.75))}catch(e){rej(e)}};im.onerror=()=>rej(new Error('load'));im.src=src});
 // иконка номинации: маленькие пиксельные картинки сохраняем как есть (PNG), большие уменьшаем
 const shrinkIcon=src=>new Promise((res,rej)=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>{try{const nw=im.naturalWidth,nh=im.naturalHeight,small=nw<=64,k=small?1:Math.min(1,192/Math.max(nw,nh)),w=Math.max(1,Math.round(nw*k)),h=Math.max(1,Math.round(nh*k)),c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.imageSmoothingEnabled=!small;x.drawImage(im,0,0,w,h);res(small?c.toDataURL('image/png'):c.toDataURL('image/webp',.85))}catch(e){rej(e)}};im.onerror=()=>rej(new Error('load'));im.src=src});
+// задник плитки номинации: JPEG до 800 px по ширине, не больше ~200 КБ
+const shrinkCover=src=>new Promise((res,rej)=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>{try{let W=Math.min(800,im.naturalWidth);for(let t=0;t<6;t++){const k=W/im.naturalWidth,c=document.createElement('canvas');c.width=W;c.height=Math.max(1,Math.round(im.naturalHeight*k));c.getContext('2d').drawImage(im,0,0,c.width,c.height);const d=c.toDataURL('image/jpeg',Math.max(.5,.78-t*.05));if(d.length<200000)return res(d);W=Math.round(W*.85)}rej(new Error('big'))}catch(e){rej(e)}};im.onerror=()=>rej(new Error('load'));im.src=src});
 // окно выбора превью: файл с компьютера или ссылка. Вернёт data-URL / ссылку / '' (без превью) / null (отмена)
-const pickImage=(title,pre,icon)=>new Promise(done=>{const sh=icon?shrinkIcon:shrink;
+const pickImage=(title,pre,icon)=>new Promise(done=>{const sh=icon==='cover'?shrinkCover:icon?shrinkIcon:shrink;
   const m=document.createElement('div');m.className='mdl';
-  m.innerHTML='<div class="acard"><b>Превью для «'+esc(title)+'»</b><p>'+(icon?'Лучше всего маленькая пиксельная картинка (например 16×16, PNG с прозрачным фоном). Она появится на сайте сразу.':'Лучше выбрать файл: тогда картинку точно увидят все.')+'</p><p><input type="file" id="pf" accept="image/*"></p><p><input id="pu" placeholder="или ссылка на картинку" value="'+esc(pre||'')+'"></p><p id="pm"></p><div class="bar"><button class="btn" id="po">Сохранить</button><button class="btn ghost" id="pn">'+(icon?'Стандартная':'Без превью')+'</button><button class="btn ghost" id="pc">Отмена</button></div></div>';
+  m.innerHTML='<div class="acard"><b>Превью для «'+esc(title)+'»</b><p><input type="file" id="pf" accept="image/*"></p><p><input id="pu" placeholder="или ссылка на картинку" value="'+esc(pre||'')+'"></p><p id="pm"></p><div class="bar"><button class="btn" id="po">Сохранить</button><button class="btn ghost" id="pn">'+(icon?(icon==='cover'?'Стандартный фон':'Стандартная'):'Без превью')+'</button><button class="btn ghost" id="pc">Отмена</button></div></div>';
   document.body.appendChild(m);
   const q=s=>m.querySelector(s),msg=t=>q('#pm').textContent=t,close=v=>{m.remove();done(v)};
   q('#pn').onclick=()=>close('');q('#pc').onclick=()=>close(null);
@@ -25,7 +27,7 @@ const pickImage=(title,pre,icon)=>new Promise(done=>{const sh=icon?shrinkIcon:sh
     }catch(e){msg('Не получилось прочитать файл. Попробуй другую картинку.');q('#po').disabled=false}
   };
 });
-if(!ready)box.innerHTML='<p class="text">Firebase не настроен: заполни firebase-config.js.</p>';
+if(!ready)box.innerHTML='<p class="text">Firebase не настроен.</p>';
 else AU.onAuthStateChanged(auth,u=>{
   if(!u){box.innerHTML='<button class="btn" id="in">Войти через Google</button>';$('#in').onclick=()=>AU.signInWithPopup(auth,new AU.GoogleAuthProvider());}
   else start(u);
@@ -37,7 +39,7 @@ function start(u){
   tabs.forEach(b=>b.onclick=()=>{tabs.forEach(x=>x.className='btn ghost');b.className='btn';({apps,noms,people,vote,look})[b.dataset.t]()});
   apps();
 }
-const denied=()=>$('#tab').innerHTML='<p class="text">Нет доступа. Проверь, что твой email указан в firestore.rules.</p>';
+const denied=()=>$('#tab').innerHTML='<p class="text">Нет доступа.</p>';
 async function apps(){
   const el=$('#tab');el.innerHTML='Загрузка…';
   try{
@@ -72,10 +74,10 @@ async function people(){
   try{
     const [es,ns]=await Promise.all([FS.getDocs(col('entries')),FS.getDocs(FS.query(col('nominations'),FS.orderBy('order')))]);
     const list=ns.docs.length?ns.docs.map(d=>({id:d.id,t:d.data().t})):DEFAULT.map(n=>({id:n.id,t:n.t}));
-    el.innerHTML=es.docs.length?'<p class="text">Отметь номинации, в которых должна быть карта, и нажми «Сохранить». Чтобы перенести карту, сними старую номинацию и отметь новую.</p>'+es.docs.map(d=>{const e=d.data();return '<div class="acard" data-id="'+esc(d.id)+'"><b>'+esc(e.name)+'</b> — '+esc(e.author)+'<div class="chips">'+list.map(n=>'<label class="chip"><input type="checkbox" value="'+esc(n.id)+'"'+((e.noms||[]).includes(n.id)?' checked':'')+'>'+esc(n.t)+'</label>').join('')+'</div><div class="bar"><button class="btn" data-a="savep">Сохранить</button></div></div>'}).join(''):'<p class="text">Участников пока нет.</p>';
+    el.innerHTML=es.docs.length?es.docs.map(d=>{const e=d.data();return '<div class="acard" data-id="'+esc(d.id)+'"><b>'+esc(e.name)+'</b> — '+esc(e.author)+'<div class="chips">'+list.map(n=>'<label class="chip"><input type="checkbox" value="'+esc(n.id)+'"'+((e.noms||[]).includes(n.id)?' checked':'')+'>'+esc(n.t)+'</label>').join('')+'</div><div class="bar"><button class="btn" data-a="savep">Сохранить</button></div></div>'}).join(''):'<p class="text">Участников пока нет.</p>';
     el.querySelectorAll('[data-a=savep]').forEach(b=>b.onclick=async()=>{
       const card=b.closest('.acard'),id=card.dataset.id,sel=[...card.querySelectorAll('input:checked')].map(i=>i.value);
-      if(!sel.length)return alert('Отметь хотя бы одну номинацию. Чтобы убрать карту совсем, отклони её во вкладке «Заявки».');
+      if(!sel.length)return alert('Отметь хотя бы одну номинацию.');
       b.disabled=true;
       try{await FS.updateDoc(ref('entries',id),{noms:sel});try{await FS.updateDoc(ref('applications',id),{noms:sel})}catch(err){}b.textContent='Сохранено'}catch(err){b.textContent='Ошибка'}
       setTimeout(()=>{b.textContent='Сохранить';b.disabled=false},1200);
@@ -92,7 +94,7 @@ async function vote(){
     const tally={};vs.docs.forEach(d=>{const v=d.data(),t=tally[v.nom]=tally[v.nom]||{};t[v.entry]=(t[v.entry]||0)+1});
     const NAME={idle:'не начато',open:'идёт',paused:'приостановлено',closed:'завершено'};
     const BTN={idle:[['open','Начать голосование']],open:[['paused','Приостановить'],['closed','Закончить голосование']],paused:[['open','Продолжить'],['closed','Закончить голосование']],closed:[]};
-    el.innerHTML='<div class="acard"><b>Статус: '+NAME[st]+'</b> · всего голосов: '+vs.docs.length+'<p class="text">Один голос на номинацию. Результаты видны только тебе, на сайте они откроются, когда ты нажмёшь «Закончить голосование».</p><div class="bar">'
+    el.innerHTML='<div class="acard"><b>Статус: '+NAME[st]+'</b> · всего голосов: '+vs.docs.length+'<div class="bar">'
       +BTN[st].map(x=>'<button class="btn'+(x[0]==='closed'?' ghost':'')+'" data-s="'+x[0]+'">'+x[1]+'</button>').join('')
       +'<button class="btn ghost" data-s="reset">Сбросить всё (тест)</button><button class="btn ghost" data-s="refresh">Обновить</button></div></div>'
       +list.map(n=>{const t=tally[n.id]||{},rows=ent.filter(e=>(e.noms||[]).includes(n.id)).map(e=>({e,c:t[e.id]||0})).sort((x,y)=>y.c-x.c);
@@ -124,8 +126,8 @@ async function look(){
   const el=$('#tab');el.innerHTML='Загрузка…';
   try{
     const s=await FS.getDoc(ref('settings','site')),cur=(s.exists()&&s.data().bg)||'';
-    el.innerHTML='<div class="acard"><b>Фон сайта</b><p class="text">Выбери картинку со своего компьютера: она станет фоном на всех страницах. Лучше широкая, например 1920×1080. Поверх неё сайт чуть затемняется, чтобы текст читался.</p>'
-      +(cur?'<img class="bgprev" src="'+esc(cur)+'" alt="">':'<p class="text">Сейчас стандартный тёмно-фиолетовый фон.</p>')
+    el.innerHTML='<div class="acard"><b>Фон сайта</b>'
+      +(cur?'<img class="bgprev" src="'+esc(cur)+'" alt="">':'')
       +'<p><input type="file" id="bgf" accept="image/*"></p><p class="text" id="bgm"></p><button class="btn" id="bgs">Сохранить фон</button><button class="btn ghost" id="bgr">Вернуть стандартный</button></div>';
     const msg=t=>$('#bgm').textContent=t;
     $('#bgs').onclick=async()=>{
@@ -141,17 +143,20 @@ async function look(){
     };
   }catch(e){denied()}
 }
-const row=(id,n)=>'<div class="nrow" data-id="'+id+'"><img class="nimg" src="'+esc(iconOf({id,img:n.img}))+'" alt=""><input class="t" value="'+esc(n.t)+'" aria-label="Название"><input class="d" value="'+esc(n.d)+'" aria-label="Описание"><input class="c" type="color" value="'+esc(n.c||'#b8f25b')+'" aria-label="Цвет"><input class="o" type="number" value="'+(n.order??0)+'" aria-label="Порядок"><button class="btn ghost" data-a="img">Картинка</button><button class="btn" data-a="save">Сохранить</button><button class="btn ghost" data-a="del">Удалить</button><span class="nid">'+(DEFAULT.some(x=>x.id===id)?'':'не из стандартных · ')+'id: '+esc(id)+'</span></div>';
+const row=(id,n)=>'<div class="nrow" data-id="'+id+'"><img class="nimg" src="'+esc(iconOf({id,img:n.img}))+'" alt=""><input class="t" value="'+esc(n.t)+'" aria-label="Название"><input class="d" value="'+esc(n.d)+'" aria-label="Описание"><input class="c" type="color" value="'+esc(n.c||'#b8f25b')+'" aria-label="Цвет"><input class="o" type="number" value="'+(n.order??0)+'" aria-label="Порядок"><button class="btn ghost" data-a="img">Картинка</button><button class="btn ghost" data-a="bg">Фон</button><button class="btn" data-a="save">Сохранить</button><button class="btn ghost" data-a="del">Удалить</button><span class="nid">'+(DEFAULT.some(x=>x.id===id)?'':'не из стандартных · ')+(n.bgimg?'свой фон · ':'')+'id: '+esc(id)+'</span></div>';
 async function noms(){
   const el=$('#tab');el.innerHTML='Загрузка…';
   try{
     const s=await FS.getDocs(FS.query(col('nominations'),FS.orderBy('order')));
     const have=new Set(s.docs.map(d=>d.id)),miss=DEFAULT.map((n,i)=>[n,i]).filter(([n])=>!have.has(n.id));
-    el.innerHTML=(s.docs.length?'<p class="text">Всего номинаций: '+s.docs.length+'</p>'+s.docs.map(d=>row(d.id,d.data())).join(''):'')+(miss.length?'<p class="text">'+(s.docs.length?'Не хватает стандартных номинаций: '+miss.length+'. ':'В базе номинаций пока нет, сайт показывает стандартные. ')+'<button class="btn" id="seed">'+(s.docs.length?'Догрузить недостающие':'Загрузить стандартные в базу')+'</button></p>':'')+
+    el.innerHTML=(s.docs.length?'<p class="text">Всего номинаций: '+s.docs.length+'</p>'+s.docs.map(d=>row(d.id,d.data())).join(''):'')+(miss.length?'<p class="text">'+(s.docs.length?'Не хватает стандартных номинаций: '+miss.length+'. ':'')+'<button class="btn" id="seed">'+(s.docs.length?'Догрузить недостающие':'Загрузить стандартные в базу')+'</button></p>':'')+
      '<h3>Добавить номинацию</h3><div class="nrow" id="new"><input class="t" placeholder="Название"><input class="d" placeholder="Описание"><input class="c" type="color" value="#b8f25b"><input class="o" type="number" value="'+s.docs.length+'"><button class="btn" data-a="add">Добавить</button></div>';
     const sd=$('#seed');if(sd)sd.onclick=async()=>{for(const [n,i] of miss)await FS.setDoc(ref('nominations',n.id),{t:n.t,d:n.d,c:n.c,order:i});noms()};
     el.querySelectorAll('.nrow [data-a]').forEach(b=>b.onclick=async()=>{
       const r=b.closest('.nrow');
+      if(b.dataset.a==='bg'){const id=r.dataset.id,bgimg=await pickImage(r.querySelector('.t').value,'','cover');
+        if(bgimg!==null){try{await FS.updateDoc(ref('nominations',id),{bgimg});noms()}catch(err){alert('Не получилось: '+err.message)}}
+        return}
       if(b.dataset.a==='img'){const id=r.dataset.id,img=await pickImage(r.querySelector('.t').value,'',true);
         if(img!==null){await FS.updateDoc(ref('nominations',id),{img});r.querySelector('.nimg').src=iconOf({id,img})}
         return}

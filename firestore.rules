@@ -4,7 +4,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return request.auth != null
-        && request.auth.token.email == 'ТВОЙ_EMAIL@gmail.com'
+        && request.auth.token.email in ['ТВОЙ_EMAIL@gmail.com', 'qwerteam.official@gmail.com']
         && request.auth.token.email_verified == true;
     }
     function votingOpen() {

@@ -1,4 +1,4 @@
-import {ready,db,auth,FS,AU} from './fb.js?v=16';
+import {ready,db,auth,FS,AU} from './fb.js?v=19';
 export const DEFAULT=[
  {id:'best',t:'Лучшая карта',d:'Главная номинация премии. Текст-заглушка.',c:'#b8f25b'},
  {id:'scary',t:'Самая страшная карта',d:'Текст-заглушка описания номинации.',c:'#ff6b5e'},
@@ -106,7 +106,7 @@ const burst=(x,y,n=16,spread=90)=>{
   }
 };
 // кольцо из квадратиков при нажатии
-const ring=(x,y,n=14,r=10,v=170)=>{
+const ring=(x,y,n=14,r=10,v=190)=>{
   if(REDUCE)return;ensureCv();if(MOB)n=10;
   for(let i=0;i<n;i++){
     const a=i/n*Math.PI*2,l=.4+Math.random()*.12;
@@ -119,7 +119,7 @@ const confetti=(n=46)=>{
   const cxm=innerWidth/2,cym=innerHeight*.42;
   for(let i=0;i<n;i++){
     const x=Math.random()*innerWidth,y=Math.random()*innerHeight,l=.7+Math.random()*.6;
-    const dx=cxm-x,dy=cym-y,d=Math.hypot(dx,dy)||1,v=160+Math.random()*180,sw=(Math.random()-.5)*160;
+    const dx=cxm-x,dy=cym-y,d=Math.hypot(dx,dy)||1,v=190+Math.random()*180,sw=(Math.random()-.5)*160;
     add({x,y,vx:dx/d*v-dy/d*sw,vy:dy/d*v+dx/d*sw,g:60,s:[2,4][Math.random()*2|0],c:pick(),life:l,max:l});
   }
 };
@@ -158,7 +158,7 @@ if(page==='nominations'){
   const [noms0,ent]=await Promise.all([getNoms(),getEntries()]);
   document.documentElement.classList.add('snap');
   const perNow=()=>innerWidth>800?3:innerWidth>520?2:1;
-  const tile=n=>{const ic=iconOf(n);return `<a class="nom" data-fx="${esc(n.id)}" style="--c:${esc(n.c)}" href="nomination.html?id=${encodeURIComponent(n.id)}"><span class="go">→</span>${ic?`<img class="ico" src="${esc(ic)}" alt="" onerror="this.remove()">`:''}<h3>${esc(n.t)}</h3><small>${ent.filter(e=>(e.noms||[]).includes(n.id)).length} участников</small></a>`};
+  const tile=n=>{const ic=iconOf(n);const cv=imgOk(n.bgimg);return `<a class="nom${cv?' hascov':''}" data-fx="${esc(n.id)}" style="--c:${esc(n.c)}" href="nomination.html?id=${encodeURIComponent(n.id)}">${cv?`<img class="cov" src="${esc(n.bgimg)}" alt="" loading="lazy" onerror="this.remove()">`:''}<span class="go">→</span>${ic?`<img class="ico" src="${esc(ic)}" alt="" onerror="this.remove()">`:''}<h3>${esc(n.t)}</h3><small>${ent.filter(e=>(e.noms||[]).includes(n.id)).length} участников</small></a>`};
   let cur=noms0,lastPer=perNow(),io;
   // номинации листаются «страницами»: по три в ряд, следующие три ниже
   const draw=noms=>{
