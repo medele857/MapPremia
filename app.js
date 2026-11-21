@@ -1,4 +1,4 @@
-import {ready,db,auth,FS,AU} from './fb.js?v=14';
+import {ready,db,auth,FS,AU} from './fb.js?v=16';
 export const DEFAULT=[
  {id:'best',t:'Лучшая карта',d:'Главная номинация премии. Текст-заглушка.',c:'#b8f25b'},
  {id:'scary',t:'Самая страшная карта',d:'Текст-заглушка описания номинации.',c:'#ff6b5e'},
@@ -119,7 +119,7 @@ const confetti=(n=46)=>{
   const cxm=innerWidth/2,cym=innerHeight*.42;
   for(let i=0;i<n;i++){
     const x=Math.random()*innerWidth,y=Math.random()*innerHeight,l=.7+Math.random()*.6;
-    const dx=cxm-x,dy=cym-y,d=Math.hypot(dx,dy)||1,v=140+Math.random()*180,sw=(Math.random()-.5)*160;
+    const dx=cxm-x,dy=cym-y,d=Math.hypot(dx,dy)||1,v=160+Math.random()*180,sw=(Math.random()-.5)*160;
     add({x,y,vx:dx/d*v-dy/d*sw,vy:dy/d*v+dx/d*sw,g:60,s:[2,4][Math.random()*2|0],c:pick(),life:l,max:l});
   }
 };
@@ -148,6 +148,8 @@ const ask=(title,text,ok='Да',no='Отмена')=>new Promise(done=>{
   m.querySelector('#ay').focus();
 });
 const toast=m=>{let t=$('#toast');if(!t){document.body.insertAdjacentHTML('beforeend','<div id="toast" role="status"></div>');t=$('#toast')}t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),2200)};
+// свой фон сайта: картинку выбирает админ (settings/site.bg), хранится прямо в базе
+if(ready)try{FS.getDoc(FS.doc(db,'settings','site')).then(s=>{const b=s.exists()&&s.data().bg;if(typeof b==='string'&&/^data:image\/(jpeg|png|webp);base64,/.test(b)){let e=document.querySelector('.sitebg');if(!e){e=document.createElement('div');e.className='sitebg';document.body.prepend(e)}e.style.backgroundImage='linear-gradient(#150d25aa,#150d25aa),url("'+b+'")'}}).catch(()=>{})}catch(e){}
 document.body.insertAdjacentHTML('beforeend',`<footer><div class="fcon"><span>Связь с организаторами:</span><a href="https://t.me/mdlstudio" target="_blank" rel="noopener noreferrer">Telegram · mdlstudio</a><a href="https://t.me/qwer_team" target="_blank" rel="noopener noreferrer">Telegram · qwer_team</a></div>МапПремия · Премия лучших майнкрафт карт · Текст-заглушка для футера · <a href="admin.html">Управление</a></footer><div id="timer"><i></i>Текст-заглушка этапа: <b id="tl">—</b></div>`);
 function tick(){const d=END-new Date();$('#tl').textContent=d>0?`${Math.floor(d/864e5)} д ${Math.floor(d%864e5/36e5)} ч`:'завершён'}
 tick();setInterval(tick,6e4);
