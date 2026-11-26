@@ -1,4 +1,4 @@
-import {ready,db,auth,FS,AU} from './fb.js?v=19';
+import {ready,db,auth,FS,AU} from './fb.js?v=20';
 export const DEFAULT=[
  {id:'best',t:'Лучшая карта',d:'Главная номинация премии. Текст-заглушка.',c:'#b8f25b'},
  {id:'scary',t:'Самая страшная карта',d:'Текст-заглушка описания номинации.',c:'#ff6b5e'},
@@ -31,6 +31,9 @@ export const ICONS={
 };
 export const iconOf=n=>imgOk(n.img)?n.img:(ICONS[n.id]||'');
 export const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+export const ytId=u=>{try{const x=new URL(String(u||'').trim());if(!/^https?:$/.test(x.protocol))return'';const h=x.hostname.replace(/^(www\.|m\.|music\.)/,'');let id='';if(h==='youtu.be')id=x.pathname.slice(1).split('/')[0];else if(h==='youtube.com'||h==='youtube-nocookie.com'){if(x.pathname==='/watch')id=x.searchParams.get('v')||'';else{const m=x.pathname.match(/^\/(shorts|live|embed|v)\/([^/?]+)/);if(m)id=m[2]}}return/^[A-Za-z0-9_-]{11}$/.test(id)?id:''}catch(e){return''}};
+export const ytThumb=id=>'https://i.ytimg.com/vi/'+id+'/hqdefault.jpg';
+export const STAGES=[[1,'Отбор карт'],[2,'Финалисты'],[3,'Голосование аудитории'],[4,'Итоги и победители']];
 const imgOk=u=>/^(https?:\/\/|data:image\/(jpeg|png|webp);base64,)/i.test(u||'');
 const safeUrl=u=>/^https?:\/\//i.test(u)?esc(u):'#';
 export async function getNoms(){
@@ -42,7 +45,6 @@ async function getEntries(){
   if(!ready)return[];
   try{return (await FS.getDocs(FS.collection(db,'entries'))).docs.map(d=>({id:d.id,...d.data()}))}catch(e){return[]}
 }
-const END=new Date('2026-12-01T00:00:00');
 const $=s=>document.querySelector(s);
 const page=document.body.dataset.page;
 const hid=s=>{let x=0;for(const c of String(s))x=(x*31+c.charCodeAt(0))>>>0;return x.toString(36)};
@@ -62,7 +64,7 @@ function setScale(v){sc=Math.min(130,Math.max(80,v));document.documentElement.st
   const l=$('#sv');if(l)l.textContent=sc+'%';try{localStorage.setItem('mlay-scale',sc)}catch(e){}}
 setScale(sc);
 
-const links=[['index.html','Главная','home'],['nominations.html','Номинации','nominations'],['apply.html','Подать заявку','apply'],['rules.html','Правила','rules']];
+const links=[['index.html','Главная','home'],['nominations.html','Номинации','nominations'],['replays.html','Реплеи','replays'],['apply.html','Подать заявку','apply'],['rules.html','Правила','rules']];
 const cur=page==='nomination'?'nominations':page;
 document.body.insertAdjacentHTML('afterbegin',`<header><a class="logo" href="index.html">МапПремия</a><nav>${links.map(l=>`<a href="${l[0]}"${l[2]===cur?' class="on"':''}>${l[1]}</a>`).join('')}</nav>
 <div class="hset"><div class="scale" role="group" aria-label="Масштаб сайта"><button id="sm" aria-label="Уменьшить">-</button><button id="sv" title="Сбросить масштаб">100%</button><button id="sp" aria-label="Увеличить">+</button></div><button class="btn ghost sndbtn" id="snd"></button></div></header>`);
@@ -106,7 +108,7 @@ const burst=(x,y,n=16,spread=90)=>{
   }
 };
 // кольцо из квадратиков при нажатии
-const ring=(x,y,n=14,r=10,v=190)=>{
+const ring=(x,y,n=14,r=10,v=200)=>{
   if(REDUCE)return;ensureCv();if(MOB)n=10;
   for(let i=0;i<n;i++){
     const a=i/n*Math.PI*2,l=.4+Math.random()*.12;
@@ -119,7 +121,7 @@ const confetti=(n=46)=>{
   const cxm=innerWidth/2,cym=innerHeight*.42;
   for(let i=0;i<n;i++){
     const x=Math.random()*innerWidth,y=Math.random()*innerHeight,l=.7+Math.random()*.6;
-    const dx=cxm-x,dy=cym-y,d=Math.hypot(dx,dy)||1,v=190+Math.random()*180,sw=(Math.random()-.5)*160;
+    const dx=cxm-x,dy=cym-y,d=Math.hypot(dx,dy)||1,v=200+Math.random()*180,sw=(Math.random()-.5)*160;
     add({x,y,vx:dx/d*v-dy/d*sw,vy:dy/d*v+dx/d*sw,g:60,s:[2,4][Math.random()*2|0],c:pick(),life:l,max:l});
   }
 };
@@ -150,10 +152,17 @@ const ask=(title,text,ok='Да',no='Отмена')=>new Promise(done=>{
 const toast=m=>{let t=$('#toast');if(!t){document.body.insertAdjacentHTML('beforeend','<div id="toast" role="status"></div>');t=$('#toast')}t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),2200)};
 // свой фон сайта: картинку выбирает админ (settings/site.bg), хранится прямо в базе
 if(ready)try{FS.getDoc(FS.doc(db,'settings','site')).then(s=>{const b=s.exists()&&s.data().bg;if(typeof b==='string'&&/^data:image\/(jpeg|png|webp);base64,/.test(b)){let e=document.querySelector('.sitebg');if(!e){e=document.createElement('div');e.className='sitebg';document.body.prepend(e)}e.style.backgroundImage='linear-gradient(#150d25aa,#150d25aa),url("'+b+'")'}}).catch(()=>{})}catch(e){}
-document.body.insertAdjacentHTML('beforeend',`<footer><div class="fcon"><span>Связь с организаторами:</span><a href="https://t.me/mdlstudio" target="_blank" rel="noopener noreferrer">Telegram · mdlstudio</a><a href="https://t.me/qwer_team" target="_blank" rel="noopener noreferrer">Telegram · qwer_team</a></div>МапПремия · Премия лучших майнкрафт карт · Текст-заглушка для футера · <a href="admin.html">Управление</a></footer><div id="timer"><i></i>Текст-заглушка этапа: <b id="tl">—</b></div>`);
-function tick(){const d=END-new Date();$('#tl').textContent=d>0?`${Math.floor(d/864e5)} д ${Math.floor(d%864e5/36e5)} ч`:'завершён'}
-tick();setInterval(tick,6e4);
+document.body.insertAdjacentHTML('beforeend',`<footer><div class="fcon"><span>Связь с организаторами:</span><a href="https://t.me/mdlstudio" target="_blank" rel="noopener noreferrer">Telegram · mdlstudio</a><a href="https://t.me/qwer_team" target="_blank" rel="noopener noreferrer">Telegram · qwer_team</a></div>МапПремия · Премия лучших майнкрафт карт · Текст-заглушка для футера · <a href="admin.html">Управление</a></footer><div id="timer"><i></i><b id="tl">Этап 1 · Отбор карт</b></div>`);
+// текущий этап премии: админ задаёт в settings/stage {n, name}
+if(ready)try{FS.getDoc(FS.doc(db,'settings','stage')).then(d=>{const v=d.exists()?d.data():null;if(!v)return;const n=Math.min(9,Math.max(1,parseInt(v.n)||1)),nm=String(v.name||'').slice(0,60)||(STAGES.find(x=>x[0]===n)||[])[1]||'';$('#tl').textContent='Этап '+n+(nm?' · '+nm:'')}).catch(()=>{})}catch(e){}
 
+if(page==='replays'){
+  const box=$('#rep');
+  const open=r=>{const m=document.createElement('div');m.className='mdl rm';m.innerHTML=`<div class="rbox" role="dialog" aria-modal="true"><div class="rframe"><iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(r.vid)}?autoplay=1&rel=0" title="${esc(r.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div><b>${esc(r.title)}</b><div class="bar"><a class="btn ghost" href="https://www.youtube.com/watch?v=${encodeURIComponent(r.vid)}" target="_blank" rel="noopener noreferrer">Открыть на YouTube</a><button class="btn" type="button" id="rx">Закрыть</button></div></div>`;document.body.appendChild(m);const x=()=>{m.remove();document.removeEventListener('keydown',kd)},kd=e=>{if(e.key==='Escape')x()};document.addEventListener('keydown',kd);m.querySelector('#rx').onclick=x;m.onclick=e=>{if(e.target===m)x()}};
+  const draw=l=>{box.innerHTML=l.length?l.map((r,i)=>`<button class="rcard" type="button" data-i="${i}"><span class="rimg"><img src="${esc(imgOk(r.thumb)?r.thumb:ytThumb(r.vid))}" alt="" loading="lazy" onerror="this.remove()"><i class="rplay" aria-hidden="true"></i></span><span class="rt">${esc(r.title)}</span></button>`).join(''):'<div class="text"><p>Реплеев пока нет. Загляни сюда позже.</p></div>';box.querySelectorAll('.rcard').forEach(b=>b.onclick=()=>open(l[+b.dataset.i]))};
+  if(!ready)draw([]);
+  else try{FS.onSnapshot(FS.query(FS.collection(db,'replays'),FS.orderBy('created','desc')),sn=>draw(sn.docs.map(d=>d.data()).filter(r=>ytId('https://youtu.be/'+r.vid)&&r.title)),()=>draw([]))}catch(e){draw([])}
+}
 if(page==='nominations'){
   const [noms0,ent]=await Promise.all([getNoms(),getEntries()]);
   document.documentElement.classList.add('snap');

@@ -4,7 +4,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return request.auth != null
-        && request.auth.token.email in ['ТВОЙ_EMAIL@gmail.com', 'qwerteam.official@gmail.com']
+        && request.auth.token.email in ['kirilleroshenko1711@gmail.com', 'qwerteam.official@gmail.com']
         && request.auth.token.email_verified == true;
     }
     function votingOpen() {
@@ -20,6 +20,7 @@ service cloud.firestore {
     match /entries/{id}     { allow read: if true; allow write: if isAdmin(); }
     match /settings/{id}    { allow read: if true; allow write: if isAdmin(); }
     match /results/{id}     { allow read: if true; allow write: if isAdmin(); }
+    match /replays/{id}     { allow read: if true; allow write: if isAdmin(); }
 
     // заявки: создать может любой вошедший, не больше 5 слотов (uid_1 ... uid_5), не больше 5 номинаций,
     // только известные поля с ограничением длины, ссылка только на minecraft-inside.ru

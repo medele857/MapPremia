@@ -1,7 +1,7 @@
-<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#0d0a14"><title>Управление — МапПремия</title><link rel="preload" href="minecraft-ten-font-cyrillic.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="style.css?v=19"><link rel="icon" href="favicon.ico?v=19" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=19"><link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png?v=19"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=19"></head><body data-page="admin"><div id="load"><b>МапПремия</b><span><i></i></span></div><script>setTimeout(function(){var l=document.getElementById("load");l&&l.remove()},9000)</script><main><h2>Управление</h2><div id="box"></div></main>
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#0d0a14"><title>Управление — МапПремия</title><link rel="preload" href="minecraft-ten-font-cyrillic.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="style.css?v=20"><link rel="icon" href="favicon.ico?v=20" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=20"><link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png?v=20"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=20"></head><body data-page="admin"><div id="load"><b>МапПремия</b><span><i></i></span></div><script>setTimeout(function(){var l=document.getElementById("load");l&&l.remove()},9000)</script><main><h2>Управление</h2><div id="box"></div></main>
 <script type="module">
-import {ready,db,auth,FS,AU} from './fb.js?v=19';
-import {esc,DEFAULT,iconOf} from './app.js?v=19';
+import {ready,db,auth,FS,AU} from './fb.js?v=20';
+import {esc,DEFAULT,iconOf,ytId,ytThumb,STAGES} from './app.js?v=20';
 const $=s=>document.querySelector(s),box=$('#box'),LBL={new:'Новая',approved:'Одобрена',rejected:'Отклонена'};
 const col=n=>FS.collection(db,n),ref=(n,i)=>FS.doc(db,n,i);
 // сжимает картинку в маленький JPEG прямо внутри записи, поэтому её видят все, а не только ты
@@ -33,10 +33,10 @@ else AU.onAuthStateChanged(auth,u=>{
   else start(u);
 });
 function start(u){
-  box.innerHTML='<p class="text">Вы вошли как '+esc(u.email)+' <button class="btn ghost" id="out">Выйти</button></p><div class="tabs"><button class="btn" data-t="apps">Заявки</button><button class="btn ghost" data-t="noms">Номинации</button><button class="btn ghost" data-t="people">Участники</button><button class="btn ghost" data-t="vote">Голосование</button><button class="btn ghost" data-t="look">Фон</button></div><div id="tab"></div>';
+  box.innerHTML='<p class="text">Вы вошли как '+esc(u.email)+' <button class="btn ghost" id="out">Выйти</button></p><div class="tabs"><button class="btn" data-t="apps">Заявки</button><button class="btn ghost" data-t="noms">Номинации</button><button class="btn ghost" data-t="people">Участники</button><button class="btn ghost" data-t="vote">Голосование</button><button class="btn ghost" data-t="reps">Реплеи</button><button class="btn ghost" data-t="stage">Этап</button><button class="btn ghost" data-t="look">Фон</button></div><div id="tab"></div>';
   $('#out').onclick=()=>AU.signOut(auth);
   const tabs=box.querySelectorAll('[data-t]');
-  tabs.forEach(b=>b.onclick=()=>{tabs.forEach(x=>x.className='btn ghost');b.className='btn';({apps,noms,people,vote,look})[b.dataset.t]()});
+  tabs.forEach(b=>b.onclick=()=>{tabs.forEach(x=>x.className='btn ghost');b.className='btn';({apps,noms,people,vote,look,reps,stage})[b.dataset.t]()});
   apps();
 }
 const denied=()=>$('#tab').innerHTML='<p class="text">Нет доступа.</p>';
@@ -122,6 +122,59 @@ async function vote(){
 }
 // фон сайта: сжимаем выбранный файл в JPEG (до ~800 КБ, лимит записи в базе 1 МБ) и кладём в settings/site
 const shrinkBg=f=>new Promise((res,rej)=>{const im=new Image();im.onload=()=>{try{let W=Math.min(1920,im.naturalWidth);for(let t=0;t<6;t++){const k=W/im.naturalWidth,c=document.createElement('canvas');c.width=W;c.height=Math.max(1,Math.round(im.naturalHeight*k));c.getContext('2d').drawImage(im,0,0,c.width,c.height);const d=c.toDataURL('image/jpeg',Math.max(.5,.8-t*.06));if(d.length<800000)return res(d);W=Math.round(W*.8)}rej(new Error('big'))}catch(e){rej(e)}};im.onerror=()=>rej(new Error('load'));im.src=URL.createObjectURL(f)});
+
+// название ролика с YouTube: сначала oEmbed, запасной вариант noembed; если не вышло, название вводится руками
+async function ytTitle(url){
+  for(const u of ['https://www.youtube.com/oembed?format=json&url=','https://noembed.com/embed?url=']){
+    try{const r=await fetch(u+encodeURIComponent(url));if(!r.ok)continue;const j=await r.json();if(j&&typeof j.title==='string'&&j.title.trim())return j.title.trim().slice(0,200)}catch(e){}
+  }
+  return '';
+}
+async function reps(){
+  const el=$('#tab');el.innerHTML='Загрузка…';
+  try{
+    const s=await FS.getDocs(FS.query(col('replays'),FS.orderBy('created','desc')));
+    const rr=d=>{const r=d.data();return '<div class="rrow" data-id="'+d.id+'"><img src="'+esc(r.thumb||ytThumb(r.vid))+'" alt=""><div class="rf"><input class="rt" value="'+esc(r.title)+'" aria-label="Название" placeholder="Название"><input class="ru" value="'+esc(r.url)+'" aria-label="Ссылка на YouTube" placeholder="Ссылка на YouTube"><input class="rp" value="'+esc(r.thumb||'')+'" aria-label="Ссылка на превью" placeholder="Ссылка на своё превью (пусто = с YouTube)"><p class="rm"></p><div class="bar"><button class="btn" data-a="save">Сохранить</button><button class="btn ghost" data-a="pull">Подтянуть с YouTube</button><button class="btn ghost" data-a="del">Удалить</button></div></div></div>'};
+    el.innerHTML='<div class="acard"><b>Добавить реплей</b><p><input id="nu" placeholder="Ссылка на видео YouTube"></p><p><input id="nt" placeholder="Название (если пусто, подтянется с YouTube)"></p><p class="text" id="nm"></p><button class="btn" id="na">Добавить</button></div>'
+      +(s.docs.length?'<p class="text">Всего реплеев: '+s.docs.length+'</p>'+s.docs.map(rr).join(''):'<p class="text">Реплеев пока нет.</p>');
+    $('#na').onclick=async()=>{
+      const m=t=>$('#nm').textContent=t,url=$('#nu').value.trim(),vid=ytId(url);
+      if(!vid)return m('Это не похоже на ссылку на видео YouTube.');
+      $('#na').disabled=true;m('Подтягиваю название…');
+      const canon='https://www.youtube.com/watch?v='+vid;
+      let title=$('#nt').value.trim().slice(0,200)||await ytTitle(canon);
+      if(!title){m('Название не подтянулось. Впиши его руками и нажми «Добавить» ещё раз.');$('#na').disabled=false;return}
+      try{await FS.addDoc(col('replays'),{title,url:canon,vid,thumb:'',created:FS.serverTimestamp()});reps()}
+      catch(err){m('Не получилось: '+err.message);$('#na').disabled=false}
+    };
+    el.querySelectorAll('.rrow [data-a]').forEach(b=>b.onclick=async()=>{
+      const r=b.closest('.rrow'),id=r.dataset.id,m=t=>r.querySelector('.rm').textContent=t,a=b.dataset.a;
+      if(a==='del'){if(!confirm('Удалить реплей?'))return;try{await FS.deleteDoc(ref('replays',id));reps()}catch(err){m('Не получилось: '+err.message)}return}
+      const url=r.querySelector('.ru').value.trim(),vid=ytId(url);
+      if(!vid)return m('Это не похоже на ссылку на видео YouTube.');
+      const canon='https://www.youtube.com/watch?v='+vid;
+      let title=r.querySelector('.rt').value.trim().slice(0,200),thumb=r.querySelector('.rp').value.trim();
+      if(thumb&&!/^https?:\/\//i.test(thumb))return m('Ссылка на превью должна начинаться с http:// или https://');
+      if(a==='pull'){m('Подтягиваю…');const t=await ytTitle(canon);if(!t)return m('Название не подтянулось, впиши руками.');title=t;thumb=''}
+      if(!title)return m('Впиши название.');
+      try{await FS.updateDoc(ref('replays',id),{title,url:canon,vid,thumb});reps()}catch(err){m('Не получилось: '+err.message)}
+    });
+  }catch(e){denied()}
+}
+// текущий этап премии, показывается в углу сайта
+async function stage(){
+  const el=$('#tab');el.innerHTML='Загрузка…';
+  try{
+    const s=await FS.getDoc(ref('settings','stage')),v=s.exists()?s.data():{n:1,name:STAGES[0][1]},n=Math.min(9,Math.max(1,parseInt(v.n)||1));
+    el.innerHTML='<div class="acard"><b>Этап премии</b><p>В углу сайта будет написано «Этап N · название».</p><p><select id="sn" aria-label="Номер этапа">'+STAGES.map(x=>'<option value="'+x[0]+'"'+(x[0]===n?' selected':'')+'>'+x[0]+'. '+esc(x[1])+'</option>').join('')+'</select></p><p><input id="st" value="'+esc(v.name||'')+'" placeholder="Название этапа" maxlength="60"></p><p class="text" id="sm2"></p><button class="btn" id="ss">Сохранить</button></div>';
+    $('#sn').onchange=()=>{$('#st').value=STAGES.find(x=>x[0]===+$('#sn').value)[1]};
+    $('#ss').onclick=async()=>{
+      const name=$('#st').value.trim().slice(0,60);
+      try{await FS.setDoc(ref('settings','stage'),{n:+$('#sn').value,name,updated:FS.serverTimestamp()});$('#sm2').textContent='Сохранено.'}
+      catch(err){$('#sm2').textContent='Не получилось: '+err.message}
+    };
+  }catch(e){denied()}
+}
 async function look(){
   const el=$('#tab');el.innerHTML='Загрузка…';
   try{
